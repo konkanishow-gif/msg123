@@ -234,6 +234,16 @@
             display: inline-block;
         }
 
+        /* History Cards */
+        .history-card {
+            border-left: 5px solid var(--msg-orange);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .history-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+        }
+
         /* Excel Sheet Preview Styling */
         .excel-frame {
             border: 2px solid #217346;
@@ -292,7 +302,12 @@
         <div class="container d-flex justify-content-between align-items-center">
             <div><i class="bi bi-shield-check text-warning me-1"></i> MSG OILFIELD TECHNICAL PORTAL</div>
             <div><span>Material Solutions Grid</span> &bull; Sourcing - Reliable & Systematic</div>
-            <div><i class="bi bi-globe me-1"></i> www.msgoilfield.com</div>
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-sm btn-outline-warning text-white py-0 border-0" onclick="openCloudinaryModal()">
+                    <span id="cloudinaryStatusBadge"><i class="bi bi-cloud-arrow-up-fill text-warning me-1"></i> Cloudinary Backend</span>
+                </button>
+                <div><i class="bi bi-globe me-1"></i> www.msgoilfield.com</div>
+            </div>
         </div>
     </div>
 
@@ -358,6 +373,7 @@
                         <small class="text-muted"><i class="bi bi-info-circle"></i> Description box is fully resizable. Click <strong>Preview Excel Sheet Layout</strong> to view visual table before download.</small>
                     </div>
                     <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-msg-primary" onclick="saveWorksheetProgress()"><i class="bi bi-cloud-check-fill me-1"></i>Save Progress</button>
                         <button class="btn btn-sm btn-preview" onclick="openExcelPreviewModal()"><i class="bi bi-eye-fill me-1"></i>Preview Excel Sheet</button>
                         <button class="btn btn-sm btn-outline-dark" onclick="addRow()"><i class="bi bi-plus-lg me-1"></i>Add Row</button>
                     </div>
@@ -404,6 +420,11 @@
                 </div>
 
                 <div class="d-flex justify-content-center flex-wrap gap-3 pt-2">
+                    <button class="btn btn-msg-primary" onclick="saveWorksheetProgress()">
+                        <i class="bi bi-cloud-upload-fill me-2"></i>Save Worksheet Progress
+                        <div style="font-size: 0.75rem; font-weight: normal; opacity: 0.9;">Cloudinary Cloud Sync & Snapshot Persistence</div>
+                    </button>
+
                     <button class="btn btn-preview" onclick="openExcelPreviewModal()">
                         <i class="bi bi-eye-fill me-2"></i>Preview Excel Sheet Layout
                         <div style="font-size: 0.75rem; font-weight: normal; opacity: 0.9;">Visual Modal Preview Before Download</div>
@@ -428,11 +449,69 @@
 
         </div>
 
+        <!-- Worked Sheets History Section (Unlimited Storage & Search) -->
+        <div class="card card-custom p-4 mb-4" id="historySection">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <div>
+                    <h5 class="fw-bold text-dark mb-0"><i class="bi bi-clock-history text-warning me-2"></i>Worked Sheets History</h5>
+                    <small class="text-muted">Unlimited worked sheets stored. Search by Client, PO Number, MSG Ref, or Date.</small>
+                </div>
+                <div>
+                    <span id="historyTotalBadge" class="badge bg-dark fs-6">0 Sheets Saved</span>
+                </div>
+            </div>
+
+            <!-- Live Search Bar -->
+            <div class="input-group mb-3">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" id="historySearchInput" class="form-control border-start-0" placeholder="Search worked sheets by Client Name, PO Number, MSG Ref, Date, or Item Description..." onkeyup="filterHistory(this.value)">
+                <button class="btn btn-outline-secondary" type="button" onclick="clearHistorySearch()"><i class="bi bi-x-circle me-1"></i>Clear</button>
+            </div>
+
+            <div id="historyListContainer" class="row g-3">
+                <!-- Loaded dynamically -->
+            </div>
+        </div>
+
         <div class="footer-branding text-center">
             <p class="mb-1 fw-semibold text-dark">MSG OILFIELD — Material Solutions Grid</p>
             <p class="mb-0 text-muted">Sourcing - Reliable & Systematic &bull; Technical & Quality Engineering</p>
         </div>
 
+    </div>
+
+    <!-- Cloudinary Config Modal -->
+    <div class="modal fade" id="cloudinaryModal" tabindex="-1" aria-labelledby="cloudinaryModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold" id="cloudinaryModalLabel"><i class="bi bi-cloud-arrow-up text-warning me-2"></i>Cloudinary Cloud Storage Settings</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 bg-light">
+                    <p class="text-muted small mb-3">Configure your Cloudinary credentials to automatically store generated Excel files, Supplier PDFs, and Worksheet backups in Cloudinary cloud storage.</p>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Cloud Name</label>
+                        <input type="text" id="cloudNameInput" class="form-control" placeholder="e.g. msg-oilfield">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">API Key</label>
+                        <input type="text" id="apiKeyInput" class="form-control" placeholder="e.g. 123456789012345">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">API Secret</label>
+                        <input type="password" id="apiSecretInput" class="form-control" placeholder="••••••••••••••••••••">
+                    </div>
+
+                    <div id="cloudinaryAlert" class="alert d-none py-2 mb-0"></div>
+                </div>
+                <div class="modal-footer bg-white">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-warning fw-bold text-dark" onclick="saveCloudinaryCredentials()"><i class="bi bi-save me-1"></i>Save Credentials & Connect</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Excel Visual Preview Modal -->
@@ -480,21 +559,86 @@
         const itemsTableBody = document.getElementById('itemsTableBody');
 
         let currentPreviewIsInternal = false;
+        let currentSheetSnapshotId = null;
 
-        // Fetch suppliers for autocomplete
-        fetch('/api/suppliers')
+        // Load Initial Data
+        document.addEventListener("DOMContentLoaded", () => {
+            fetchSuppliers();
+            fetchHistory();
+            checkCloudinaryStatus();
+        });
+
+        function fetchSuppliers() {
+            fetch('/api/suppliers')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.suppliers) {
+                        const datalist = document.getElementById('suppliersList');
+                        datalist.innerHTML = '';
+                        data.suppliers.forEach(supp => {
+                            const opt = document.createElement('option');
+                            opt.value = supp;
+                            datalist.appendChild(opt);
+                        });
+                    }
+                })
+                .catch(err => console.error("Could not load suppliers datalist", err));
+        }
+
+        function checkCloudinaryStatus() {
+            fetch('/api/cloudinary-config')
+                .then(res => res.json())
+                .then(data => {
+                    const badge = document.getElementById('cloudinaryStatusBadge');
+                    if (data.configured) {
+                        badge.innerHTML = `<i class="bi bi-cloud-check-fill text-success me-1"></i> Cloudinary Active (${data.cloud_name})`;
+                    } else {
+                        badge.innerHTML = `<i class="bi bi-cloud-slash-fill text-warning me-1"></i> Cloudinary Unconfigured`;
+                    }
+                })
+                .catch(err => console.error("Could not check Cloudinary status", err));
+        }
+
+        function openCloudinaryModal() {
+            fetch('/api/cloudinary-config')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.cloud_name) document.getElementById('cloudNameInput').value = data.cloud_name;
+                    const modal = new bootstrap.Modal(document.getElementById('cloudinaryModal'));
+                    modal.show();
+                });
+        }
+
+        function saveCloudinaryCredentials() {
+            const cloud_name = document.getElementById('cloudNameInput').value.trim();
+            const api_key = document.getElementById('apiKeyInput').value.trim();
+            const api_secret = document.getElementById('apiSecretInput').value.trim();
+
+            const alertBox = document.getElementById('cloudinaryAlert');
+
+            fetch('/api/cloudinary-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cloud_name, api_key, api_secret })
+            })
             .then(res => res.json())
             .then(data => {
-                if (data.success && data.suppliers) {
-                    const datalist = document.getElementById('suppliersList');
-                    data.suppliers.forEach(supp => {
-                        const opt = document.createElement('option');
-                        opt.value = supp;
-                        datalist.appendChild(opt);
-                    });
+                alertBox.classList.remove('d-none', 'alert-success', 'alert-danger');
+                if (data.configured) {
+                    alertBox.classList.add('alert-success');
+                    alertBox.innerText = 'Connected to Cloudinary successfully!';
+                    checkCloudinaryStatus();
+                } else {
+                    alertBox.classList.add('alert-danger');
+                    alertBox.innerText = 'Could not connect. Please verify Cloud Name, API Key, and API Secret.';
                 }
             })
-            .catch(err => console.error("Could not load suppliers datalist", err));
+            .catch(err => {
+                alertBox.classList.remove('d-none');
+                alertBox.classList.add('alert-danger');
+                alertBox.innerText = 'Error saving credentials: ' + err.message;
+            });
+        }
 
         dropzone.addEventListener('click', () => pdfFileInput.click());
 
@@ -522,7 +666,7 @@
         });
 
         function handleFileUpload(file) {
-            if (!file.name.toLowerCase().endswith?.('.pdf') && !file.name.toLowerCase().endsWith('.pdf')) {
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
                 alert('Please upload a PDF file.');
                 return;
             }
@@ -544,9 +688,11 @@
                 if (data.success) {
                     statusMessage.innerText = 'PDF Parsed Successfully!';
                     statusMessage.className = 'fw-semibold mt-2 text-success';
+                    currentSheetSnapshotId = data.snapshot_id || null;
                     populateEditor(data.data);
                     editorSection.classList.remove('d-none');
                     editorSection.scrollIntoView({ behavior: 'smooth' });
+                    fetchHistory();
                 } else {
                     statusMessage.innerText = 'Error: ' + data.error;
                     statusMessage.className = 'fw-semibold mt-2 text-danger';
@@ -563,6 +709,9 @@
             document.getElementById('clientInput').value = data.client || '';
             document.getElementById('poInput').value = data.po_number || '';
             document.getElementById('msgRefInput').value = data.msg_ref || '';
+            if (data.filter_machined_only !== undefined) {
+                document.getElementById('filterMachinedCheck').checked = Boolean(data.filter_machined_only);
+            }
 
             itemsTableBody.innerHTML = '';
             const items = data.items || [];
@@ -668,13 +817,19 @@
                 });
             });
 
-            return {
+            const payload = {
                 client: document.getElementById('clientInput').value.trim(),
                 po_number: document.getElementById('poInput').value.trim(),
                 msg_ref: document.getElementById('msgRefInput').value.trim(),
                 filter_machined_only: document.getElementById('filterMachinedCheck').checked,
                 items: items
             };
+
+            if (currentSheetSnapshotId) {
+                payload.id = currentSheetSnapshotId;
+            }
+
+            return payload;
         }
 
         const MANUFACTURING_KEYWORDS = ["machined", "fabricated", "made from", "modified", "locally", "offered"];
@@ -682,6 +837,127 @@
             if (!text) return false;
             const lower = text.toLowerCase();
             return MANUFACTURING_KEYWORDS.some(kw => new RegExp('\\b' + kw, 'i').test(lower));
+        }
+
+        function saveWorksheetProgress() {
+            const payload = buildPayload();
+            fetch('/api/save-worksheet', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.record) {
+                    currentSheetSnapshotId = data.record.id;
+                    fetchHistory();
+                    alert('Worksheet progress saved successfully!');
+                } else {
+                    alert('Error saving worksheet progress: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(err => alert('Save failed: ' + err.message));
+        }
+
+        // --- History System ---
+        function fetchHistory(query = '') {
+            fetch(`/api/history?q=${encodeURIComponent(query)}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.sheets) {
+                        renderHistoryGrid(data.sheets);
+                    }
+                })
+                .catch(err => console.error("Error fetching history", err));
+        }
+
+        function filterHistory(query) {
+            fetchHistory(query);
+        }
+
+        function clearHistorySearch() {
+            document.getElementById('historySearchInput').value = '';
+            fetchHistory();
+        }
+
+        function renderHistoryGrid(sheets) {
+            const container = document.getElementById('historyListContainer');
+            document.getElementById('historyTotalBadge').innerText = `${sheets.length} Sheet(s) Stored`;
+
+            if (sheets.length === 0) {
+                container.innerHTML = `
+                    <div class="col-12 text-center py-4 text-muted">
+                        <i class="bi bi-inbox fs-1 d-block mb-2 text-warning"></i>
+                        No worked sheets found matching your search.
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            sheets.forEach(s => {
+                const urls = s.file_urls || {};
+                html += `
+                <div class="col-md-6 col-lg-4">
+                    <div class="card card-custom p-3 history-card h-100">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 class="fw-bold text-dark mb-0">${escapeHtml(s.client || 'Client Name')}</h6>
+                                <small class="text-muted">PO: <strong>${escapeHtml(s.po_number || 'N/A')}</strong> &bull; MSG: <strong>${escapeHtml(s.msg_ref || 'N/A')}</strong></small>
+                            </div>
+                            <span class="badge bg-warning text-dark fs-7">${s.item_count || 0} items</span>
+                        </div>
+                        <p class="text-muted small mb-2"><i class="bi bi-calendar3 me-1"></i>${escapeHtml(s.formatted_date || '')}</p>
+                        
+                        <div class="d-flex flex-wrap gap-1 mb-3">
+                            ${urls.client_excel_url ? `<a href="${urls.client_excel_url}" target="_blank" class="btn btn-xs btn-outline-success"><i class="bi bi-cloud-download me-1"></i>Client Excel</a>` : ''}
+                            ${urls.stores_excel_url ? `<a href="${urls.stores_excel_url}" target="_blank" class="btn btn-xs btn-outline-dark"><i class="bi bi-cloud-download me-1"></i>Stores Excel</a>` : ''}
+                            ${urls.supplier_pdf_zip_url ? `<a href="${urls.supplier_pdf_zip_url}" target="_blank" class="btn btn-xs btn-outline-danger"><i class="bi bi-file-zip me-1"></i>PDFs ZIP</a>` : ''}
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mt-auto pt-2 border-top">
+                            <button class="btn btn-sm btn-msg-primary" onclick="restoreWorksheet('${s.id}')">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i>Restore State
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger border-0" onclick="deleteHistoryItem('${s.id}')" title="Delete record">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function restoreWorksheet(sheetId) {
+            fetch(`/api/history/${sheetId}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.sheet) {
+                        currentSheetSnapshotId = data.sheet.id;
+                        populateEditor(data.sheet);
+                        editorSection.classList.remove('d-none');
+                        editorSection.scrollIntoView({ behavior: 'smooth' });
+                    }
+                })
+                .catch(err => alert('Failed to restore worksheet: ' + err.message));
+        }
+
+        function deleteHistoryItem(sheetId) {
+            if (!confirm('Are you sure you want to delete this historical sheet record?')) return;
+            fetch(`/api/history/${sheetId}`, { method: 'DELETE' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        fetchHistory(document.getElementById('historySearchInput').value);
+                    }
+                });
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
         }
 
         function openExcelPreviewModal() {
@@ -717,21 +993,21 @@
             if (isInternal) {
                 html += `
                 <tr>
-                    <td colspan="5" class="excel-meta-cell">Client : ${payload.client || ''}</td>
+                    <td colspan="5" class="excel-meta-cell">Client : ${escapeHtml(payload.client || '')}</td>
                     <td colspan="4" rowspan="3" style="background:#f9f9f9; text-align:center; vertical-align:middle; font-weight:bold; color:#888;">[ Spacer Block ]</td>
                     <td colspan="2" rowspan="3" style="text-align:center; vertical-align:middle;"><img src="/static/logo.png" style="max-height:45px;"></td>
                 </tr>
-                <tr><td colspan="5" class="excel-meta-cell">PO Number: ${payload.po_number || ''}</td></tr>
-                <tr><td colspan="5" class="excel-meta-cell">MSG Ref: ${payload.msg_ref || ''}</td></tr>`;
+                <tr><td colspan="5" class="excel-meta-cell">PO Number: ${escapeHtml(payload.po_number || '')}</td></tr>
+                <tr><td colspan="5" class="excel-meta-cell">MSG Ref: ${escapeHtml(payload.msg_ref || '')}</td></tr>`;
             } else {
                 html += `
                 <tr>
-                    <td colspan="5" class="excel-meta-cell">Client : ${payload.client || ''}</td>
+                    <td colspan="5" class="excel-meta-cell">Client : ${escapeHtml(payload.client || '')}</td>
                     <td colspan="2" rowspan="3" style="background:#f9f9f9; text-align:center; vertical-align:middle; font-weight:bold; color:#888;">[ Spacer ]</td>
                     <td colspan="1" rowspan="3" style="text-align:center; vertical-align:middle;"><img src="/static/logo.png" style="max-height:45px;"></td>
                 </tr>
-                <tr><td colspan="5" class="excel-meta-cell">PO Number: ${payload.po_number || ''}</td></tr>
-                <tr><td colspan="5" class="excel-meta-cell">MSG Ref: ${payload.msg_ref || ''}</td></tr>`;
+                <tr><td colspan="5" class="excel-meta-cell">PO Number: ${escapeHtml(payload.po_number || '')}</td></tr>
+                <tr><td colspan="5" class="excel-meta-cell">MSG Ref: ${escapeHtml(payload.msg_ref || '')}</td></tr>`;
             }
 
             // 3. Header Row
@@ -746,25 +1022,25 @@
                 html += `<tr>`;
                 if (isInternal) {
                     html += `<td style="text-align:center;">${it.sl_no || ''}</td>`;
-                    html += `<td style="text-align:center;">${it.client_po_item_no || ''}</td>`;
-                    html += `<td style="white-space:pre-wrap; width:35%;">${it.description || ''}</td>`;
-                    html += `<td style="text-align:center;">${it.qty || ''}</td>`;
-                    html += `<td style="text-align:center;">${it.uom || ''}</td>`;
-                    html += `<td style="text-align:center;">${it.heat_number || ''}</td>`;
-                    html += `<td style="text-align:center;">${it.certificate_number || ''}</td>`;
-                    html += `<td style="text-align:center;">${it.make || ''}</td>`;
-                    html += `<td>${it.remarks || ''}</td>`;
-                    html += `<td style="text-align:center;">${it.supplier_name || ''}</td>`;
-                    html += `<td style="text-align:center;">${it.supplier_po || ''}</td>`;
+                    html += `<td style="text-align:center;">${escapeHtml(it.client_po_item_no || '')}</td>`;
+                    html += `<td style="white-space:pre-wrap; width:35%;">${escapeHtml(it.description || '')}</td>`;
+                    html += `<td style="text-align:center;">${escapeHtml(it.qty || '')}</td>`;
+                    html += `<td style="text-align:center;">${escapeHtml(it.uom || '')}</td>`;
+                    html += `<td style="text-align:center;">${escapeHtml(it.heat_number || '')}</td>`;
+                    html += `<td style="text-align:center;">${escapeHtml(it.certificate_number || '')}</td>`;
+                    html += `<td style="text-align:center;">${escapeHtml(it.make || '')}</td>`;
+                    html += `<td>${escapeHtml(it.remarks || '')}</td>`;
+                    html += `<td style="text-align:center;">${escapeHtml(it.supplier_name || '')}</td>`;
+                    html += `<td style="text-align:center;">${escapeHtml(it.supplier_po || '')}</td>`;
                 } else {
                     html += `<td style="text-align:center;">${it.sl_no || ''}</td>`;
-                    html += `<td style="white-space:pre-wrap; width:40%;">${it.description || ''}</td>`;
-                    html += `<td style="text-align:center;">${it.qty || ''}</td>`;
-                    html += `<td style="text-align:center;">${it.uom || ''}</td>`;
-                    html += `<td style="text-align:center;">${it.heat_number || ''}</td>`;
-                    html += `<td style="text-align:center;">${it.certificate_number || ''}</td>`;
-                    html += `<td style="text-align:center;">${it.make || ''}</td>`;
-                    html += `<td>${it.remarks || ''}</td>`;
+                    html += `<td style="white-space:pre-wrap; width:40%;">${escapeHtml(it.description || '')}</td>`;
+                    html += `<td style="text-align:center;">${escapeHtml(it.qty || '')}</td>`;
+                    html += `<td style="text-align:center;">${escapeHtml(it.uom || '')}</td>`;
+                    html += `<td style="text-align:center;">${escapeHtml(it.heat_number || '')}</td>`;
+                    html += `<td style="text-align:center;">${escapeHtml(it.certificate_number || '')}</td>`;
+                    html += `<td style="text-align:center;">${escapeHtml(it.make || '')}</td>`;
+                    html += `<td>${escapeHtml(it.remarks || '')}</td>`;
                 }
                 html += `</tr>`;
             });
@@ -804,6 +1080,7 @@
                 a.click();
                 a.remove();
                 window.URL.revokeObjectURL(url);
+                fetchHistory();
             })
             .catch(err => alert('Error downloading Excel: ' + err.message));
         }
@@ -829,6 +1106,7 @@
                 a.click();
                 a.remove();
                 window.URL.revokeObjectURL(url);
+                fetchHistory();
             })
             .catch(err => alert('Error exporting Supplier PDFs: ' + err.message));
         }

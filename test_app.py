@@ -118,5 +118,38 @@ class SummaryAppTestCase(unittest.TestCase):
         self.assertIsNotNone(m)
         self.assertEqual(m.group(0), "Offered 1/2\" NPT")
 
+    def test_history_and_cloudinary_api(self):
+        # 1. Test Cloudinary Config API GET & POST
+        res = self.app.get('/api/cloudinary-config')
+        self.assertEqual(res.status_code, 200)
+        
+        # 2. Test Save Worksheet API
+        payload = {
+            "client": "Test Client LLC",
+            "po_number": "PO-9999",
+            "msg_ref": "MSG-TEST-001",
+            "items": [{"sl_no": 1, "description": "FLANGE 2\" 150#"}]
+        }
+        res_save = self.app.post('/api/save-worksheet', json=payload)
+        self.assertEqual(res_save.status_code, 200)
+        data_save = res_save.get_json()
+        self.assertTrue(data_save['success'])
+        sheet_id = data_save['record']['id']
+
+        # 3. Test History GET API (with search query)
+        res_hist = self.app.get('/api/history?q=Test Client')
+        self.assertEqual(res_hist.status_code, 200)
+        sheets = res_hist.get_json()['sheets']
+        self.assertTrue(any(s['id'] == sheet_id for s in sheets))
+
+        # 4. Test Get History Detail API
+        res_detail = self.app.get(f'/api/history/{sheet_id}')
+        self.assertEqual(res_detail.status_code, 200)
+        self.assertEqual(res_detail.get_json()['sheet']['client'], "Test Client LLC")
+
+        # 5. Test Delete History API
+        res_del = self.app.delete(f'/api/history/{sheet_id}')
+        self.assertEqual(res_del.status_code, 200)
+
 if __name__ == '__main__':
     unittest.main()
