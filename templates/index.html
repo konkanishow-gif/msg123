@@ -829,11 +829,18 @@
 
         function calculateRowAmount(input) {
             const tr = input.closest('tr');
-            const qtyStr = tr.querySelector('.item-qty').value.replace(/,/g, '').trim();
+            const qtyStr = tr.querySelector('.item-qty').value.trim();
             const rateStr = tr.querySelector('.item-rate').value.replace(/,/g, '').trim();
             const amtInput = tr.querySelector('.item-amount');
             
-            const qty = parseFloat(qtyStr);
+            let qty = 0;
+            const ofMatch = qtyStr.match(/^([\d.]+)\s*(?:OF|of)/i);
+            if (ofMatch) {
+                qty = parseFloat(ofMatch[1]);
+            } else {
+                qty = parseFloat(qtyStr.replace(/,/g, ''));
+            }
+            
             const rate = parseFloat(rateStr);
             
             if (!isNaN(qty) && !isNaN(rate)) {
@@ -850,16 +857,114 @@
         }
 
         function splitRow(btn) {
-            const currentTr = btn.closest('tr');
-            const newTr = currentTr.cloneNode(true);
-            
-            newTr.querySelector('.item-qty').value = '';
-            newTr.querySelector('.item-amount').value = '';
-            newTr.querySelector('.item-heat').value = '';
-            newTr.querySelector('.item-cert').value = '';
+            const currentRow = btn.closest('tr');
+            const slNo = currentRow.querySelector('.row-sl-no').innerText.trim();
+            const clientPoIt = currentRow.querySelector('.item-client-po-item-no')?.value || slNo;
+            const desc = currentRow.querySelector('.item-desc').value;
+            const rawQty = currentRow.querySelector('.item-qty').value.trim();
+            const uom = currentRow.querySelector('.item-uom').value;
+            const rate = currentRow.querySelector('.item-rate')?.value || '';
+            const pkgType = currentRow.querySelector('.item-pkg-type')?.value || 'Pallet';
+            const pkgNo = currentRow.querySelector('.item-pkg-no')?.value || '1';
+            const heat = currentRow.querySelector('.item-heat').value;
+            const cert = currentRow.querySelector('.item-cert').value;
+            const make = currentRow.querySelector('.item-make').value;
+            const remarks = currentRow.querySelector('.item-remarks').value;
+            const supplier = currentRow.querySelector('.item-supplier-name').value;
+            const supplierPo = currentRow.querySelector('.item-supplier-po').value;
 
-            currentTr.parentNode.insertBefore(newTr, currentTr.nextSibling);
-            reindexRows();
+            // Extract total qty numerical value
+            let totalQty = 0;
+            let match = rawQty.match(/([\d.]+)\s*(?:OF|of)\s*([\d.]+)/i);
+            if (match) {
+                totalQty = parseFloat(match[2]);
+            } else {
+                totalQty = parseFloat(rawQty.replace(/,/g, '')) || 1;
+            }
+
+            const defaultVal = totalQty > 1 ? Math.floor(totalQty / 2) : totalQty;
+            const inputVal = prompt(`Split Item #${slNo} (${totalQty} ${uom} total required).\n\nEnter Qty for 1st batch (e.g., 1 for "1 OF ${totalQty}"):`, defaultVal);
+            if (inputVal === null) return; // Cancelled
+
+            const split1 = parseFloat(inputVal);
+            if (isNaN(split1) || split1 <= 0 || split1 >= totalQty) {
+                alert(`Please enter a valid partial number between 0 and ${totalQty}`);
+                return;
+            }
+
+            const split2 = (totalQty - split1);
+
+            const fmtTotal = Number.isInteger(totalQty) ? totalQty : totalQty.toFixed(2);
+            const fmt1 = Number.isInteger(split1) ? split1 : split1.toFixed(2);
+            const fmt2 = Number.isInteger(split2) ? split2 : split2.toFixed(2);
+
+            // Update 1st batch row
+            currentRow.querySelector('.item-qty').value = `${fmt1} OF ${fmtTotal}`;
+            if (rate) {
+                currentRow.querySelector('.item-amount').value = (split1 * parseFloat(rate.replace(/,/g, ''))).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+
+            // Create 2nd batch row directly below with SAME slNo
+            const newTr = document.createElement('tr');
+            newTr.innerHTML = `
+                <td class="text-center fw-semibold row-sl-no">${slNo}</td>
+                <td class="internal-col text-center">
+                    <input type="text" class="form-control form-control-sm text-center item-client-po-item-no" value="${escapeHtml(clientPoIt)}">
+                </td>
+                <td>
+                    <textarea class="form-control desc item-desc" placeholder="Item Description">${escapeHtml(desc)}</textarea>
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm text-center item-qty" value="${fmt2} OF ${fmtTotal}" oninput="calculateRowAmount(this)">
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm text-center item-uom" value="${escapeHtml(uom)}">
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm text-end item-rate" value="${escapeHtml(rate)}" placeholder="0.00" oninput="calculateRowAmount(this)">
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm text-end item-amount fw-semibold" value="${rate ? (split2 * parseFloat(rate.replace(/,/g, ''))).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}" placeholder="0.00">
+                </td>
+                <td>
+                    <div class="input-group input-group-sm">
+                        <select class="form-select form-select-sm item-pkg-type" style="max-width: 90px; font-size: 0.8rem;">
+                            <option value="Pallet" ${pkgType === 'Pallet' ? 'selected' : ''}>Pallet</option>
+                            <option value="Box" ${pkgType === 'Box' ? 'selected' : ''}>Box</option>
+                            <option value="Crate" ${pkgType === 'Crate' ? 'selected' : ''}>Crate</option>
+                            <option value="Wooden Box" ${pkgType === 'Wooden Box' ? 'selected' : ''}>W.Box</option>
+                            <option value="Carton" ${pkgType === 'Carton' ? 'selected' : ''}>Carton</option>
+                            <option value="Bundle" ${pkgType === 'Bundle' ? 'selected' : ''}>Bundle</option>
+                        </select>
+                        <input type="text" class="form-control form-control-sm text-center item-pkg-no" value="${escapeHtml(pkgNo)}" placeholder="#" style="max-width: 45px; font-size: 0.8rem;">
+                    </div>
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm text-center item-heat" value="" placeholder="Heat #2">
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm text-center item-cert" value="${escapeHtml(cert)}" placeholder="Cert #2">
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm text-center item-make" value="${escapeHtml(make)}">
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm item-remarks" value="${escapeHtml(remarks)}">
+                </td>
+                <td class="internal-col">
+                    <input type="text" class="form-control form-control-sm item-supplier-name" list="suppliersList" value="${escapeHtml(supplier)}" placeholder="Supplier">
+                </td>
+                <td class="internal-col">
+                    <input type="text" class="form-control form-control-sm text-center item-supplier-po" value="${escapeHtml(supplierPo)}" placeholder="PO #">
+                </td>
+                <td class="text-center">
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-success btn-sm py-0 px-1" onclick="splitRow(this)" title="Split row for multi-heat"><i class="bi bi-plus-square"></i></button>
+                        <button class="btn btn-outline-danger btn-sm py-0 px-1" onclick="deleteRow(this)" title="Delete Row"><i class="bi bi-trash"></i></button>
+                    </div>
+                </td>
+            `;
+            currentRow.parentNode.insertBefore(newTr, currentRow.nextSibling);
         }
 
         function deleteRow(btn) {

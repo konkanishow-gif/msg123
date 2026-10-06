@@ -119,10 +119,22 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
         desc = it.get('description', '')
         make = it.get('make', '')
         qty_str = str(it.get('qty', '1')).replace(',', '').strip()
-        try:
-            qty_val = float(qty_str) if qty_str else 1.0
-        except ValueError:
-            qty_val = 1.0
+        
+        # Check if qty is in "X OF Y" format
+        is_of_format = bool(re.search(r'\b(?:OF|of)\b', qty_str))
+        qty_val = 1.0
+        if is_of_format:
+            m_of = re.search(r'([\d.]+)\s*(?:OF|of)', qty_str, re.I)
+            if m_of:
+                try:
+                    qty_val = float(m_of.group(1))
+                except ValueError:
+                    qty_val = 1.0
+        else:
+            try:
+                qty_val = float(qty_str) if qty_str else 1.0
+            except ValueError:
+                qty_val = 1.0
             
         uom = it.get('uom', 'pcs').upper()
         rate_str = str(it.get('rate', '')).replace(',', '').strip()
@@ -146,9 +158,13 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
         ws_inv.cell(row=current_row, column=3, value=desc).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
         ws_inv.cell(row=current_row, column=4, value=make).alignment = Alignment(horizontal='center', vertical='center')
         
-        c_qty = ws_inv.cell(row=current_row, column=5, value=qty_val)
-        c_qty.alignment = Alignment(horizontal='right', vertical='center')
-        c_qty.number_format = '#,##0.00'
+        if is_of_format:
+            c_qty = ws_inv.cell(row=current_row, column=5, value=qty_str.upper())
+            c_qty.alignment = Alignment(horizontal='center', vertical='center')
+        else:
+            c_qty = ws_inv.cell(row=current_row, column=5, value=qty_val)
+            c_qty.alignment = Alignment(horizontal='right', vertical='center')
+            c_qty.number_format = '#,##0.00'
         
         ws_inv.cell(row=current_row, column=6, value=uom).alignment = Alignment(horizontal='center', vertical='center')
         
@@ -264,10 +280,22 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
         client_po_it = it.get('client_po_item_no', str(sl))
         desc = it.get('description', '')
         qty_str = str(it.get('qty', '1')).replace(',', '').strip()
-        try:
-            qty_val = float(qty_str) if qty_str else 1.0
-        except ValueError:
-            qty_val = 1.0
+        
+        is_of_format = bool(re.search(r'\b(?:OF|of)\b', qty_str))
+        qty_val = 1.0
+        if is_of_format:
+            m_of = re.search(r'([\d.]+)\s*(?:OF|of)', qty_str, re.I)
+            if m_of:
+                try:
+                    qty_val = float(m_of.group(1))
+                except ValueError:
+                    qty_val = 1.0
+        else:
+            try:
+                qty_val = float(qty_str) if qty_str else 1.0
+            except ValueError:
+                qty_val = 1.0
+                
         total_qty += qty_val
         uom = it.get('uom', 'pcs').upper()
         
@@ -280,9 +308,13 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
         ws_pk.cell(row=current_pk_row, column=3, value=client_po_it).alignment = Alignment(horizontal='center', vertical='center')
         ws_pk.cell(row=current_pk_row, column=4, value=desc).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
         
-        c_q = ws_pk.cell(row=current_pk_row, column=5, value=qty_val)
-        c_q.alignment = Alignment(horizontal='right', vertical='center')
-        c_q.number_format = '#,##0.00'
+        if is_of_format:
+            c_q = ws_pk.cell(row=current_pk_row, column=5, value=qty_str.upper())
+            c_q.alignment = Alignment(horizontal='center', vertical='center')
+        else:
+            c_q = ws_pk.cell(row=current_pk_row, column=5, value=qty_val)
+            c_q.alignment = Alignment(horizontal='right', vertical='center')
+            c_q.number_format = '#,##0.00'
         
         ws_pk.cell(row=current_pk_row, column=6, value=uom).alignment = Alignment(horizontal='center', vertical='center')
         ws_pk.cell(row=current_pk_row, column=7, value=net_wt).alignment = Alignment(horizontal='center', vertical='center')
