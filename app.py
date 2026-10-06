@@ -2,7 +2,8 @@ import os
 import sys
 import json
 import tempfile
-from flask import Flask, render_template, request, jsonify, send_file
+from functools import wraps
+from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, session
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
@@ -20,17 +21,57 @@ app = Flask(
     static_folder=os.path.join(BASE_DIR, 'static')
 )
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024
+app.secret_key = os.environ.get('SECRET_KEY', 'msg_oilfield_secure_secret_key_2026')
+
+ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in'):
+            if request.path.startswith('/api/'):
+                return jsonify({"success": False, "error": "Unauthorized. Please log in."}), 401
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
+
+        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+            session['logged_in'] = True
+            session['username'] = username
+            return redirect(url_for('index'))
+        else:
+            return render_template('login.html', error="Invalid Username or Password. Please try again.")
+
+    if session.get('logged_in'):
+        return redirect(url_for('index'))
+
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
 
 @app.route('/')
+@login_required
 def index():
-    return render_template('index.html')
+    return render_template('index.html', username=session.get('username', 'admin'))
 
 @app.route('/api/suppliers', methods=['GET'])
+@login_required
 def get_suppliers():
     suppliers = load_master_suppliers()
     return jsonify({"success": True, "suppliers": suppliers})
 
 @app.route('/api/parse', methods=['POST'])
+@login_required
 def parse_pdf():
     if 'pdf_file' not in request.files:
         return jsonify({"success": False, "error": "No PDF file uploaded"}), 400
@@ -84,6 +125,7 @@ def parse_pdf():
                 pass
 
 @app.route('/api/history', methods=['GET'])
+@login_required
 def get_history():
     query = request.args.get('q', '')
     sheets = history_manager.get_all_sheets(search_query=query)
@@ -94,6 +136,7 @@ def get_history():
     })
 
 @app.route('/api/history/<sheet_id>', methods=['GET'])
+@login_required
 def get_history_detail(sheet_id):
     sheet = history_manager.get_sheet_by_id(sheet_id)
     if not sheet:
@@ -101,11 +144,13 @@ def get_history_detail(sheet_id):
     return jsonify({"success": True, "sheet": sheet})
 
 @app.route('/api/history/<sheet_id>', methods=['DELETE'])
+@login_required
 def delete_history_item(sheet_id):
     success = history_manager.delete_sheet_snapshot(sheet_id)
     return jsonify({"success": success})
 
 @app.route('/api/save-worksheet', methods=['POST'])
+@login_required
 def save_worksheet():
     try:
         data = request.json
@@ -155,6 +200,7 @@ def save_worksheet():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/cloudinary-config', methods=['GET', 'POST'])
+@login_required
 def handle_cloudinary_config():
     if request.method == 'GET':
         config = cloudinary_handler.load_cloudinary_config()
@@ -178,6 +224,7 @@ def handle_cloudinary_config():
         })
 
 @app.route('/api/download', methods=['POST'])
+@login_required
 def download_excel():
     try:
         data = request.json
@@ -194,7 +241,7 @@ def download_excel():
         
         stream = generate_summary_excel(data, is_internal=is_internal, filter_machined_only=filter_machined_only)
         
-        # Save snapshot asynchronously / in background
+        # Save snapshot in background
         try:
             history_manager.save_sheet_snapshot(data)
         except Exception:
@@ -210,6 +257,7 @@ def download_excel():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/export-supplier-pdfs', methods=['POST'])
+@login_required
 def export_supplier_pdfs():
     try:
         data = request.json

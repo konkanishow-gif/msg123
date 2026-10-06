@@ -8,8 +8,26 @@ class SummaryAppTestCase(unittest.TestCase):
     def setUp(self):
         self.app = app.test_client()
         self.app.testing = True
+        with self.app.session_transaction() as sess:
+            sess['logged_in'] = True
+            sess['username'] = 'admin'
 
-    def test_index_route(self):
+    def test_login_and_logout(self):
+        client = app.test_client()
+        # 1. Unauthenticated request to / redirects to /login
+        res_unauth = client.get('/')
+        self.assertEqual(res_unauth.status_code, 302)
+        self.assertIn('/login', res_unauth.location)
+
+        # 2. Login POST with correct credentials
+        res_login = client.post('/login', data={'username': 'admin', 'password': 'admin123'}, follow_redirects=True)
+        self.assertEqual(res_login.status_code, 200)
+        self.assertIn(b'MSG Oilfield', res_login.data)
+
+        # 3. Logout GET redirects to /login
+        res_logout = client.get('/logout')
+        self.assertEqual(res_logout.status_code, 302)
+        self.assertIn('/login', res_logout.location)
         response = self.app.get('/')
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'MSG Oilfield', response.data)
