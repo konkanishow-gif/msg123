@@ -457,6 +457,34 @@ def extract_pdf_data(pdf_path_or_file):
         if "certificate_number" not in item:
             item["certificate_number"] = ""
 
+    # Group items by client_po_item_no to auto-detect split batches (e.g. 14 pcs stock & 26 pcs local market -> 14 OF 40 & 26 OF 40)
+    from collections import defaultdict
+    client_groups = defaultdict(list)
+    for it in items:
+        c_no = str(it.get("client_po_item_no", "")).strip()
+        if c_no:
+            client_groups[c_no].append(it)
+
+    for c_no, grp in client_groups.items():
+        if len(grp) > 1:
+            total_qty = 0.0
+            for it in grp:
+                raw_q = str(it.get("qty", "1")).replace(",", "").strip()
+                m = re.match(r"^([\d.]+)", raw_q)
+                if m:
+                    total_qty += float(m.group(1))
+            
+            fmt_total = int(total_qty) if total_qty.is_integer() else round(total_qty, 2)
+            
+            for it in grp:
+                raw_q = str(it.get("qty", "1")).replace(",", "").strip()
+                m = re.match(r"^([\d.]+)", raw_q)
+                curr_q = float(m.group(1)) if m else 1.0
+                fmt_curr = int(curr_q) if curr_q.is_integer() else round(curr_q, 2)
+                it["qty"] = f"{fmt_curr} OF {fmt_total}"
+                it["total_qty"] = fmt_total
+                it["group_id"] = f"grp-{c_no}"
+
     return {
         "client": client,
         "po_number": po_number,

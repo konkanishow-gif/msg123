@@ -752,6 +752,35 @@
 
             itemsTableBody.innerHTML = '';
             const items = data.items || [];
+
+            // Pre-process items to auto-group split batches sharing the same Client PO Item No
+            const clientGroups = {};
+            items.forEach(it => {
+                const cNo = String(it.client_po_item_no || '').trim();
+                if (cNo) {
+                    if (!clientGroups[cNo]) clientGroups[cNo] = [];
+                    clientGroups[cNo].push(it);
+                }
+            });
+
+            Object.keys(clientGroups).forEach(cNo => {
+                const grp = clientGroups[cNo];
+                if (grp.length > 1) {
+                    let total = 0;
+                    grp.forEach(it => {
+                        total += extractQtyNumber(it.qty);
+                    });
+                    const fmtTotal = Number.isInteger(total) ? total : total.toFixed(2);
+                    grp.forEach(it => {
+                        const curr = extractQtyNumber(it.qty);
+                        const fmtCurr = Number.isInteger(curr) ? curr : curr.toFixed(2);
+                        it.qty = `${fmtCurr} OF ${fmtTotal}`;
+                        it.total_qty = total;
+                        it.group_id = 'grp-' + cNo;
+                    });
+                }
+            });
+
             items.forEach((item, index) => {
                 addRow(item, index + 1);
             });
@@ -766,22 +795,23 @@
             const pkgNo = item.package_no || '1';
             const rawQty = String(item.qty || '1.00').trim();
 
-            let totalQty = 1;
+            let totalQty = item.total_qty || 1;
             const ofMatch = rawQty.match(/([\d.]+)\s*(?:OF|of)\s*([\d.]+)/i);
             if (ofMatch) {
                 totalQty = parseFloat(ofMatch[2]) || 1;
-            } else {
+            } else if (!item.total_qty) {
                 totalQty = parseFloat(rawQty.replace(/,/g, '')) || 1;
             }
 
-            const groupId = item.group_id || ('grp-' + (item.client_po_item_no || currentSlNo));
+            const clientPoItVal = item.client_po_item_no || currentSlNo;
+            const groupId = item.group_id || ('grp-' + clientPoItVal);
             tr.setAttribute('data-group-id', groupId);
             tr.setAttribute('data-total-qty', totalQty);
 
             tr.innerHTML = `
                 <td class="text-center fw-semibold row-sl-no">${currentSlNo}</td>
                 <td class="internal-col text-center">
-                    <input type="text" class="form-control form-control-sm text-center item-client-po-item-no" value="${escapeHtml(item.client_po_item_no || currentSlNo)}" placeholder="1">
+                    <input type="text" class="form-control form-control-sm text-center item-client-po-item-no" value="${escapeHtml(clientPoItVal)}" placeholder="1" onchange="onClientPoItemNoChange(this)">
                 </td>
                 <td>
                     <textarea class="form-control desc item-desc" placeholder="Item Description">${escapeHtml(item.description || '')}</textarea>
@@ -838,6 +868,43 @@
             `;
             itemsTableBody.appendChild(tr);
             reindexRows();
+        }
+
+        function onClientPoItemNoChange(input) {
+            recalculateClientItemGroups();
+        }
+
+        function recalculateClientItemGroups() {
+            const rows = Array.from(itemsTableBody.querySelectorAll('tr'));
+            const clientGroups = {};
+
+            rows.forEach(r => {
+                const cNo = r.querySelector('.item-client-po-item-no')?.value.trim();
+                if (cNo) {
+                    if (!clientGroups[cNo]) clientGroups[cNo] = [];
+                    clientGroups[cNo].push(r);
+                }
+            });
+
+            Object.keys(clientGroups).forEach(cNo => {
+                const grp = clientGroups[cNo];
+                if (grp.length > 1) {
+                    let total = 0;
+                    grp.forEach(r => {
+                        total += extractQtyNumber(r.querySelector('.item-qty').value);
+                    });
+                    const fmtTotal = Number.isInteger(total) ? total : total.toFixed(2);
+                    grp.forEach(r => {
+                        r.setAttribute('data-group-id', 'grp-' + cNo);
+                        r.setAttribute('data-total-qty', total);
+                        const currQtyInput = r.querySelector('.item-qty');
+                        const currVal = extractQtyNumber(currQtyInput.value);
+                        const fmtCurr = Number.isInteger(currVal) ? currVal : currVal.toFixed(2);
+                        currQtyInput.value = `${fmtCurr} OF ${fmtTotal}`;
+                        calculateRowAmount(currQtyInput);
+                    });
+                }
+            });
         }
 
         function extractQtyNumber(qtyStr) {
