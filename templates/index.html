@@ -764,6 +764,19 @@
 
             const pkgType = item.package_type || 'Pallet';
             const pkgNo = item.package_no || '1';
+            const rawQty = String(item.qty || '1.00').trim();
+
+            let totalQty = 1;
+            const ofMatch = rawQty.match(/([\d.]+)\s*(?:OF|of)\s*([\d.]+)/i);
+            if (ofMatch) {
+                totalQty = parseFloat(ofMatch[2]) || 1;
+            } else {
+                totalQty = parseFloat(rawQty.replace(/,/g, '')) || 1;
+            }
+
+            const groupId = item.group_id || ('grp-' + (item.client_po_item_no || currentSlNo));
+            tr.setAttribute('data-group-id', groupId);
+            tr.setAttribute('data-total-qty', totalQty);
 
             tr.innerHTML = `
                 <td class="text-center fw-semibold row-sl-no">${currentSlNo}</td>
@@ -774,7 +787,7 @@
                     <textarea class="form-control desc item-desc" placeholder="Item Description">${escapeHtml(item.description || '')}</textarea>
                 </td>
                 <td>
-                    <input type="text" class="form-control form-control-sm text-center item-qty" value="${escapeHtml(item.qty || '1.00')}" oninput="calculateRowAmount(this)">
+                    <input type="text" class="form-control form-control-sm text-center item-qty" value="${escapeHtml(item.qty || '1.00')}" oninput="calculateRowAmount(this)" onchange="validateQtyChange(this)">
                 </td>
                 <td>
                     <input type="text" class="form-control form-control-sm text-center item-uom" value="${escapeHtml(item.uom || 'pcs')}">
@@ -827,25 +840,72 @@
             reindexRows();
         }
 
+        function extractQtyNumber(qtyStr) {
+            if (!qtyStr) return 0;
+            const str = String(qtyStr).trim();
+            const ofMatch = str.match(/^([\d.]+)\s*(?:OF|of)/i);
+            if (ofMatch) {
+                return parseFloat(ofMatch[1]) || 0;
+            }
+            return parseFloat(str.replace(/,/g, '')) || 0;
+        }
+
         function calculateRowAmount(input) {
             const tr = input.closest('tr');
             const qtyStr = tr.querySelector('.item-qty').value.trim();
             const rateStr = tr.querySelector('.item-rate').value.replace(/,/g, '').trim();
             const amtInput = tr.querySelector('.item-amount');
             
-            let qty = 0;
-            const ofMatch = qtyStr.match(/^([\d.]+)\s*(?:OF|of)/i);
-            if (ofMatch) {
-                qty = parseFloat(ofMatch[1]);
-            } else {
-                qty = parseFloat(qtyStr.replace(/,/g, ''));
-            }
-            
+            const qty = extractQtyNumber(qtyStr);
             const rate = parseFloat(rateStr);
             
             if (!isNaN(qty) && !isNaN(rate)) {
                 amtInput.value = (qty * rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             }
+        }
+
+        function validateQtyChange(input) {
+            const tr = input.closest('tr');
+            const groupId = tr.getAttribute('data-group-id');
+            const totalQty = parseFloat(tr.getAttribute('data-total-qty')) || extractQtyNumber(input.value) || 1;
+
+            if (!groupId) {
+                calculateRowAmount(input);
+                return;
+            }
+
+            const groupRows = Array.from(itemsTableBody.querySelectorAll(`tr[data-group-id="${groupId}"]`));
+            if (groupRows.length <= 1) {
+                // Single row item
+                calculateRowAmount(input);
+                return;
+            }
+
+            // Calculate sum of other rows in group
+            let otherSum = 0;
+            groupRows.forEach(r => {
+                if (r !== tr) {
+                    otherSum += extractQtyNumber(r.querySelector('.item-qty').value);
+                }
+            });
+
+            const maxAllowed = Math.max(0, totalQty - otherSum);
+            let enteredQty = extractQtyNumber(input.value);
+
+            if (enteredQty <= 0) {
+                enteredQty = 1;
+            }
+
+            if (enteredQty > maxAllowed) {
+                alert(`Cannot exceed total PO quantity (${totalQty}).\nOnly ${maxAllowed} pc(s) available for this split batch.`);
+                enteredQty = maxAllowed;
+            }
+
+            const fmtEntered = Number.isInteger(enteredQty) ? enteredQty : enteredQty.toFixed(2);
+            const fmtTotal = Number.isInteger(totalQty) ? totalQty : totalQty.toFixed(2);
+
+            input.value = `${fmtEntered} OF ${fmtTotal}`;
+            calculateRowAmount(input);
         }
 
         function setAllPackaging(pkgType) {
@@ -873,26 +933,56 @@
             const supplier = currentRow.querySelector('.item-supplier-name').value;
             const supplierPo = currentRow.querySelector('.item-supplier-po').value;
 
-            // Extract total qty numerical value
-            let totalQty = 0;
-            let match = rawQty.match(/([\d.]+)\s*(?:OF|of)\s*([\d.]+)/i);
-            if (match) {
-                totalQty = parseFloat(match[2]);
-            } else {
-                totalQty = parseFloat(rawQty.replace(/,/g, '')) || 1;
+            let groupId = currentRow.getAttribute('data-group-id');
+            if (!groupId) {
+                groupId = 'grp-' + clientPoIt;
+                currentRow.setAttribute('data-group-id', groupId);
             }
 
-            const defaultVal = totalQty > 1 ? Math.floor(totalQty / 2) : totalQty;
-            const inputVal = prompt(`Split Item #${slNo} (${totalQty} ${uom} total required).\n\nEnter Qty for 1st batch (e.g., 1 for "1 OF ${totalQty}"):`, defaultVal);
-            if (inputVal === null) return; // Cancelled
+            // Extract total qty and current batch qty
+            let totalQty = parseFloat(currentRow.getAttribute('data-total-qty'));
+            let match = rawQty.match(/([\d.]+)\s*(?:OF|of)\s*([\d.]+)/i);
+            if (match) {
+                totalQty = totalQty || parseFloat(match[2]);
+            } else {
+                totalQty = totalQty || parseFloat(rawQty.replace(/,/g, '')) || 1;
+            }
+            currentRow.setAttribute('data-total-qty', totalQty);
 
-            const split1 = parseFloat(inputVal);
-            if (isNaN(split1) || split1 <= 0 || split1 >= totalQty) {
-                alert(`Please enter a valid partial number between 0 and ${totalQty}`);
+            let currentBatchQty = extractQtyNumber(rawQty);
+            if (currentBatchQty <= 0) currentBatchQty = totalQty;
+
+            // Check if can be split
+            if (currentBatchQty <= 1 && totalQty <= 1) {
+                alert(`Item #${clientPoIt} has total quantity of ${totalQty} ${uom}. Cannot split 1 pc into multiple integer units.`);
                 return;
             }
 
-            const split2 = (totalQty - split1);
+            if (currentBatchQty <= 1) {
+                alert(`This batch already has quantity of 1 pc. Cannot split further.`);
+                return;
+            }
+
+            let split1 = 1;
+            let split2 = 1;
+
+            if (totalQty === 2 && currentBatchQty === 2) {
+                // Direct clean split 1 OF 2 and 1 OF 2 without prompt
+                split1 = 1;
+                split2 = 1;
+            } else {
+                // If larger quantity, ask how many pcs for first batch
+                const defaultVal = Math.floor(currentBatchQty / 2) || 1;
+                const inputVal = prompt(`Split Item #${clientPoIt} (${currentBatchQty} ${uom} available in this batch of ${totalQty} total).\n\nEnter Qty for 1st batch (e.g. 1 for "1 OF ${totalQty}"):`, defaultVal);
+                if (inputVal === null) return; // Cancelled
+
+                split1 = parseFloat(inputVal);
+                if (isNaN(split1) || split1 <= 0 || split1 >= currentBatchQty) {
+                    alert(`Please enter a valid partial quantity between 1 and ${currentBatchQty - 1}`);
+                    return;
+                }
+                split2 = (currentBatchQty - split1);
+            }
 
             const fmtTotal = Number.isInteger(totalQty) ? totalQty : totalQty.toFixed(2);
             const fmt1 = Number.isInteger(split1) ? split1 : split1.toFixed(2);
@@ -904,8 +994,11 @@
                 currentRow.querySelector('.item-amount').value = (split1 * parseFloat(rate.replace(/,/g, ''))).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             }
 
-            // Create 2nd batch row directly below with SAME slNo
+            // Create 2nd batch row directly below with SAME group ID, total Qty, and Client PO Item No
             const newTr = document.createElement('tr');
+            newTr.setAttribute('data-group-id', groupId);
+            newTr.setAttribute('data-total-qty', totalQty);
+
             newTr.innerHTML = `
                 <td class="text-center fw-semibold row-sl-no">${slNo}</td>
                 <td class="internal-col text-center">
@@ -915,7 +1008,7 @@
                     <textarea class="form-control desc item-desc" placeholder="Item Description">${escapeHtml(desc)}</textarea>
                 </td>
                 <td>
-                    <input type="text" class="form-control form-control-sm text-center item-qty" value="${fmt2} OF ${fmtTotal}" oninput="calculateRowAmount(this)">
+                    <input type="text" class="form-control form-control-sm text-center item-qty" value="${fmt2} OF ${fmtTotal}" oninput="calculateRowAmount(this)" onchange="validateQtyChange(this)">
                 </td>
                 <td>
                     <input type="text" class="form-control form-control-sm text-center item-uom" value="${escapeHtml(uom)}">
