@@ -78,23 +78,31 @@ def strip_leading_item_number(description, sl_no=None):
     desc = re.sub(r"^\d{1,3}\s*[\.\-]\s+(?![\"\/])", "", desc).strip()
     return desc
 
+def extract_product_code_and_desc(description):
+    """
+    Extracts the leading product code (e.g. TEE256KNPTA105JD-STOCK, LSNPL2515S160)
+    and returns (product_code, remaining_description).
+    Preserves standard fitting names (THREADOLET, SPECTACLE, UNION, ELBOW, etc.).
+    """
+    if not description:
+        return "", ""
+    desc = description.strip()
+    tokens = desc.split(maxsplit=1)
+    if tokens and len(tokens) > 1:
+        first_token = tokens[0].strip()
+        if first_token.upper() not in COMMON_ITEM_WORDS:
+            if re.match(r"^[A-Z]{2,}[A-Z0-9\-_\/&]{3,45}$", first_token):
+                return first_token, tokens[1].strip()
+    return "", desc
+
 def strip_internal_product_code(description):
     """
     Strips internal product codes like LBL25300RF, LTO156KA350LF2, LUN256KNPTA105N,
     XEL90250S40SRWPB, BL151500RF, EL90256KNPTA105JD-STOCK from the beginning of item descriptions.
     Preserves standard fitting names (THREADOLET, SPECTACLE, UNION, ELBOW, etc.).
     """
-    if not description:
-        return ""
-    desc = description.strip()
-    tokens = desc.split(maxsplit=1)
-    if tokens and len(tokens) > 1:
-        first_token = tokens[0].strip()
-        if first_token.upper() not in COMMON_ITEM_WORDS:
-            # Alphanumeric codes starting with 2+ uppercase letters, length 5-45 (supporting &, -, _, /)
-            if re.match(r"^[A-Z]{2,}[A-Z0-9\-_\/&]{3,45}$", first_token):
-                desc = tokens[1].strip()
-    return desc
+    _, clean_desc = extract_product_code_and_desc(description)
+    return clean_desc
 
 def clean_cell_text(v):
     if not v:
@@ -410,19 +418,31 @@ def extract_pdf_data(pdf_path_or_file):
         # Strip leading item sequence numbers e.g. "1 ECC. RED..." -> "ECC. RED..."
         item["description"] = strip_leading_item_number(item["description"], item["sl_no"])
 
-        raw_full = item["description"] + " " + item.get("remarks", "")
+        # 1. Extract product code strictly from the beginning of description
+        product_code, clean_desc = extract_product_code_and_desc(item["description"])
+        if product_code:
+            item["product_code"] = product_code
+            item["description"] = clean_desc
+        else:
+            item["product_code"] = ""
 
-        # Auto-detect MAKE from code / raw item description if empty
-        if not item.get("make"):
-            detected_make = auto_detect_make(raw_full)
-            if detected_make:
-                item["make"] = detected_make
-        
-        # Check if code or description contains STOCK
-        if re.search(r"[-_\s/]?STOCK\b", raw_full, re.IGNORECASE):
-            item["supplier_name"] = "STOCK"
+        # 2. Check MAKE and STOCK strictly from product code
+        if item["product_code"]:
+            # Auto-detect MAKE strictly from product code
+            if not item.get("make"):
+                detected_make = auto_detect_make(item["product_code"])
+                if detected_make:
+                    item["make"] = detected_make
 
-        # Check if description itself contains remark patterns
+            # Check if product code contains STOCK
+            if re.search(r"[-_\s/]?STOCK\b", item["product_code"], re.IGNORECASE):
+                item["supplier_name"] = "STOCK"
+            else:
+                item["supplier_name"] = ""
+        else:
+            item["supplier_name"] = ""
+
+        # 3. Check if description itself contains remark patterns
         rem_match = REMARK_PATTERN.search(item["description"])
         if rem_match:
             remark_text = rem_match.group(0).strip()
@@ -434,23 +454,8 @@ def extract_pdf_data(pdf_path_or_file):
             else:
                 item["remarks"] = remark_text
 
-        # Strip internal product codes e.g. LBL25300RF, LTO156KA350LF2, LUN256KNPTA105N
-        item["description"] = strip_internal_product_code(item["description"])
-
         # Strip leading item number again if revealed after code stripping
         item["description"] = strip_leading_item_number(item["description"], item["sl_no"])
-
-        # Master Supplier Auto-match (if supplier_name is not already set)
-        if not item.get("supplier_name"):
-            desc_rem = (item["description"] + " " + item.get("remarks", "")).lower()
-            EXCLUDED_BRAND_SUPPLIERS = {"mega s.p.a", "metalfar prodotti industriali s.p.a.", "raccortubi s.p.a."}
-            for supplier in MASTER_SUPPLIERS:
-                if supplier.lower() in EXCLUDED_BRAND_SUPPLIERS:
-                    continue
-                core_name = re.sub(r"\b(LLC|FZE|FZC|L\.L\.C|PTE|LTD|CO|INC|S\.P\.A|BV)\b", "", supplier, flags=re.IGNORECASE).strip()
-                if len(core_name) > 3 and re.search(r"\b" + re.escape(core_name.lower()) + r"\b", desc_rem):
-                    item["supplier_name"] = supplier
-                    break
 
         # Ensure default packaging fields
         if not item.get("package_type"):
