@@ -2,27 +2,86 @@ import os
 import json
 import time
 import uuid
+import tempfile
 from datetime import datetime
 
-HISTORY_FILE = os.path.join(os.path.dirname(__file__), 'static', 'history', 'history.json')
+BUNDLED_HISTORY_FILE = os.path.join(os.path.dirname(__file__), 'static', 'history', 'history.json')
+TEMP_HISTORY_FILE = os.path.join(tempfile.gettempdir(), 'msg_oilfield_history.json')
 
-def _ensure_history_dir():
-    os.makedirs(os.path.dirname(HISTORY_FILE), exist_ok=True)
-    if not os.path.exists(HISTORY_FILE):
-        with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
-            json.dump([], f)
+def _is_local_writable():
+    local_dir = os.path.join(os.path.dirname(__file__), 'static', 'history')
+    try:
+        os.makedirs(local_dir, exist_ok=True)
+        test_file = os.path.join(local_dir, '.write_test')
+        with open(test_file, 'w') as f:
+            f.write('1')
+        if os.path.exists(test_file):
+            os.remove(test_file)
+        return True
+    except Exception:
+        return False
+
+def _get_history_file(for_writing=False):
+    """
+    Determines history file path.
+    If local directory is writable (local development), uses static/history/history.json.
+    Otherwise (e.g. Vercel serverless /var/task), falls back to /tmp/msg_oilfield_history.json.
+    """
+    if _is_local_writable():
+        return BUNDLED_HISTORY_FILE
+    
+    if for_writing or os.path.exists(TEMP_HISTORY_FILE):
+        return TEMP_HISTORY_FILE
+        
+    if os.path.exists(BUNDLED_HISTORY_FILE):
+        return BUNDLED_HISTORY_FILE
+        
+    return TEMP_HISTORY_FILE
+
+def _ensure_history_file():
+    target_file = _get_history_file(for_writing=True)
+    try:
+        os.makedirs(os.path.dirname(target_file), exist_ok=True)
+    except Exception:
+        pass
+        
+    if not os.path.exists(target_file):
+        initial_data = []
+        if os.path.exists(BUNDLED_HISTORY_FILE):
+            try:
+                with open(BUNDLED_HISTORY_FILE, 'r', encoding='utf-8') as f:
+                    initial_data = json.load(f)
+            except Exception:
+                initial_data = []
+        try:
+            with open(target_file, 'w', encoding='utf-8') as f:
+                json.dump(initial_data, f)
+        except Exception as e:
+            print(f"Warning: Could not create history file: {e}")
+            
+    return target_file
 
 def get_all_sheets(search_query=""):
     """
     Returns unlimited historical worksheet records, sorted newest first.
     Filters by search_query (Client Name, PO Number, MSG Ref, Date, Item Keywords).
     """
-    _ensure_history_dir()
-    try:
-        with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
-            sheets = json.load(f)
-    except Exception:
-        sheets = []
+    target_file = _get_history_file(for_writing=False)
+    sheets = []
+    
+    if os.path.exists(target_file):
+        try:
+            with open(target_file, 'r', encoding='utf-8') as f:
+                sheets = json.load(f)
+        except Exception:
+            sheets = []
+
+    if not sheets and os.path.exists(BUNDLED_HISTORY_FILE) and target_file != BUNDLED_HISTORY_FILE:
+        try:
+            with open(BUNDLED_HISTORY_FILE, 'r', encoding='utf-8') as f:
+                sheets = json.load(f)
+        except Exception:
+            pass
 
     # Sort newest first
     sheets.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
@@ -66,7 +125,7 @@ def save_sheet_snapshot(data, file_urls=None):
     data: JSON payload with client, po_number, msg_ref, items, filter_machined_only
     file_urls: dict with client_excel_url, stores_excel_url, supplier_pdf_zip_url
     """
-    _ensure_history_dir()
+    target_file = _ensure_history_file()
     sheets = get_all_sheets()
 
     msg_ref = data.get("msg_ref", "SO").strip()
@@ -97,8 +156,11 @@ def save_sheet_snapshot(data, file_urls=None):
     sheets = [s for s in sheets if s.get('id') != sheet_id]
     sheets.insert(0, record)
 
-    with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
-        json.dump(sheets, f, indent=2)
+    try:
+        with open(target_file, 'w', encoding='utf-8') as f:
+            json.dump(sheets, f, indent=2)
+    except Exception as e:
+        print(f"Warning: Could not save history file: {e}")
 
     return record
 
@@ -106,9 +168,12 @@ def delete_sheet_snapshot(sheet_id):
     """
     Deletes a historical sheet record by ID.
     """
-    _ensure_history_dir()
+    target_file = _ensure_history_file()
     sheets = get_all_sheets()
     filtered = [s for s in sheets if s.get('id') != sheet_id]
-    with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
-        json.dump(filtered, f, indent=2)
+    try:
+        with open(target_file, 'w', encoding='utf-8') as f:
+            json.dump(filtered, f, indent=2)
+    except Exception as e:
+        print(f"Warning: Could not delete history record: {e}")
     return True

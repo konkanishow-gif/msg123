@@ -1,12 +1,14 @@
 import os
 import io
 import json
+import tempfile
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
 
 # Default config from environment or fallback config file
-CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'static', 'cloudinary_config.json')
+BUNDLED_CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'static', 'cloudinary_config.json')
+TEMP_CONFIG_FILE = os.path.join(tempfile.gettempdir(), 'msg_oilfield_cloudinary_config.json')
 
 def load_cloudinary_config():
     """
@@ -16,15 +18,19 @@ def load_cloudinary_config():
     api_key = os.environ.get('CLOUDINARY_API_KEY', '')
     api_secret = os.environ.get('CLOUDINARY_API_SECRET', '')
 
-    if not (cloud_name and api_key and api_secret) and os.path.exists(CONFIG_FILE):
-        try:
-            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-                saved = json.load(f)
-                cloud_name = saved.get('cloud_name', cloud_name)
-                api_key = saved.get('api_key', api_key)
-                api_secret = saved.get('api_secret', api_secret)
-        except Exception:
-            pass
+    if not (cloud_name and api_key and api_secret):
+        for config_path in [TEMP_CONFIG_FILE, BUNDLED_CONFIG_FILE]:
+            if os.path.exists(config_path):
+                try:
+                    with open(config_path, 'r', encoding='utf-8') as f:
+                        saved = json.load(f)
+                        cloud_name = saved.get('cloud_name', cloud_name)
+                        api_key = saved.get('api_key', api_key)
+                        api_secret = saved.get('api_secret', api_secret)
+                        if cloud_name and api_key and api_secret:
+                            break
+                except Exception:
+                    pass
 
     return {
         "cloud_name": cloud_name,
@@ -53,16 +59,23 @@ def is_cloudinary_configured():
 
 def save_cloudinary_config(cloud_name, api_key, api_secret):
     """
-    Saves Cloudinary credentials to local config file and reinitializes.
+    Saves Cloudinary credentials to config file and reinitializes.
     """
     data = {
         "cloud_name": cloud_name.strip(),
         "api_key": api_key.strip(),
         "api_secret": api_secret.strip()
     }
-    os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
-    with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2)
+    
+    # Try writing to bundled first, or temp file if read-only
+    for target in [BUNDLED_CONFIG_FILE, TEMP_CONFIG_FILE]:
+        try:
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            with open(target, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2)
+            break
+        except Exception:
+            continue
 
     os.environ['CLOUDINARY_CLOUD_NAME'] = data['cloud_name']
     os.environ['CLOUDINARY_API_KEY'] = data['api_key']
