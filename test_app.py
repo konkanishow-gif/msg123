@@ -20,7 +20,7 @@ class SummaryAppTestCase(unittest.TestCase):
         self.assertIn('/login', res_unauth.location)
 
         # 2. Login POST with correct credentials
-        res_login = client.post('/login', data={'username': 'admin', 'password': 'admin123'}, follow_redirects=True)
+        res_login = client.post('/login', data={'username': 'info@msgoilfield.com', 'password': 'MSG#2026!SecP@ss982'}, follow_redirects=True)
         self.assertEqual(res_login.status_code, 200)
         self.assertIn(b'MSG Oilfield', res_login.data)
 

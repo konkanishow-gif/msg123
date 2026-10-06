@@ -23,8 +23,8 @@ app = Flask(
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024
 app.secret_key = os.environ.get('SECRET_KEY', 'msg_oilfield_secure_secret_key_2026')
 
-ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
-ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
+ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'info@msgoilfield.com')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'MSG#2026!SecP@ss982')
 
 def login_required(f):
     @wraps(f)
@@ -42,12 +42,13 @@ def login():
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()
 
-        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+        valid_user = username.lower() in [ADMIN_USERNAME.lower(), 'admin', 'info@msgoilfield.com']
+        if valid_user and password == ADMIN_PASSWORD:
             session['logged_in'] = True
             session['username'] = username
             return redirect(url_for('index'))
         else:
-            return render_template('login.html', error="Invalid Username or Password. Please try again.")
+            return render_template('login.html', error="Invalid Email/Username or Password. Please try again.")
 
     if session.get('logged_in'):
         return redirect(url_for('index'))
