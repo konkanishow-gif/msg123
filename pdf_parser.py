@@ -30,7 +30,7 @@ REMARK_PATTERN = re.compile(
 
 MAKE_MAPPINGS = [
     (r"OMSA[-_]?STOCK|OMSA", "OMSA GERMANY"),
-    (r"JD[-_]?STOCK|\bDELCORTE\b", "DELCORTE GERMANY"),
+    (r"JD[-_]?STOCK|\bDELCORTE\b|MEGA\/JD", "DELCORTE FRANCE"),
     (r"W[-_]?STOCK|WMA?ASS", "WMASS GERMANY"),
     (r"TK[-_]?STOCK", "TK KOREA"),
     (r"ST&H(?:[-_]?STOCK)?|STH", "ST&H KOREA"),
@@ -38,21 +38,23 @@ MAKE_MAPPINGS = [
     (r"BENKAN", "BENKAN THAILAND"),
     (r"ULMA", "ULMA SPAIN"),
     (r"MELESI", "MELESI ITALY"),
+    (r"\bMEGA\b", "MEGA ITALY"),
 ]
 
 def auto_detect_make(raw_text):
     """
     Auto-detects manufacturer / MAKE name from raw item description or product code.
     Mappings:
-      - MFF -> Metalfar Italy
+      - MFF / METALFAR -> Metalfar Italy
       - BENKAN -> BENKAN THAILAND
       - ST&H / STH -> ST&H KOREA
       - W-STOCK / WMAASS / WMASS -> WMASS GERMANY
-      - JD-STOCK / DELCORTE -> DELCORTE GERMANY
+      - JD-STOCK / DELCORTE / MEGA/JD -> DELCORTE FRANCE
       - OMSA-STOCK / OMSA -> OMSA GERMANY
       - TK-STOCK -> TK KOREA
       - ULMA -> ULMA SPAIN
       - MELESI -> MELESI ITALY
+      - MEGA -> MEGA ITALY
     """
     if not raw_text:
         return ""
@@ -441,9 +443,12 @@ def extract_pdf_data(pdf_path_or_file):
         # Master Supplier Auto-match (if supplier_name is not already set)
         if not item.get("supplier_name"):
             desc_rem = (item["description"] + " " + item.get("remarks", "")).lower()
+            EXCLUDED_BRAND_SUPPLIERS = {"mega s.p.a", "metalfar prodotti industriali s.p.a.", "raccortubi s.p.a."}
             for supplier in MASTER_SUPPLIERS:
+                if supplier.lower() in EXCLUDED_BRAND_SUPPLIERS:
+                    continue
                 core_name = re.sub(r"\b(LLC|FZE|FZC|L\.L\.C|PTE|LTD|CO|INC|S\.P\.A|BV)\b", "", supplier, flags=re.IGNORECASE).strip()
-                if len(core_name) > 3 and core_name.lower() in desc_rem:
+                if len(core_name) > 3 and re.search(r"\b" + re.escape(core_name.lower()) + r"\b", desc_rem):
                     item["supplier_name"] = supplier
                     break
 

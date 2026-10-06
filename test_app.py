@@ -118,7 +118,7 @@ class SummaryAppTestCase(unittest.TestCase):
         self.assertEqual(auto_detect_make("TEE 3\" BENKAN A234 WPB"), "BENKAN THAILAND")
         self.assertEqual(auto_detect_make("BL25150RFA105/A350LF2ST&H-STOCK"), "ST&H KOREA")
         self.assertEqual(auto_detect_make("XEL90250S40SRWPB-W-STOCK"), "WMASS GERMANY")
-        self.assertEqual(auto_detect_make("EL90256KNPTA105JD-STOCK"), "DELCORTE GERMANY")
+        self.assertEqual(auto_detect_make("EL90256KNPTA105JD-STOCK"), "DELCORTE FRANCE")
         self.assertEqual(auto_detect_make("LTO156KA350LF2-OMSA-STOCK"), "OMSA GERMANY")
         self.assertEqual(auto_detect_make("XEL90250S40SRWPB-TK-STOCK"), "TK KOREA")
         self.assertEqual(auto_detect_make("SPECTACLE BLIND 3/4\" ULMA 300#"), "ULMA SPAIN")
