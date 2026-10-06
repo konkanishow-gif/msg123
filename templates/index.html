@@ -200,6 +200,22 @@
             color: white;
         }
 
+        .btn-cipl-download {
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+            color: white;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
+            transition: all 0.3s ease;
+        }
+        .btn-cipl-download:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(2, 132, 199, 0.45);
+            color: white;
+        }
+
         .btn-pdf-download {
             background: linear-gradient(135deg, #ea580c 0%, #dc2626 100%);
             color: white;
@@ -378,13 +394,25 @@
                     </div>
                 </div>
 
-                <!-- Export Filter Option -->
-                <div class="alert alert-light border d-flex align-items-center mb-3 py-2">
-                    <div class="form-check form-switch mb-0">
-                        <input class="form-check-input" type="checkbox" id="filterMachinedCheck" checked>
-                        <label class="form-check-label fw-semibold text-dark" for="filterMachinedCheck">
-                            Export ONLY items containing <code>Machined From</code>, <code>Fabricated From</code>, <code>Made from</code>, <code>Modified from</code>, <code>Offered</code>, or <code>Locally</code> in remarks/description
-                        </label>
+                <!-- Export Filter & Packaging Quick Toolbar -->
+                <div class="row g-2 align-items-center mb-3">
+                    <div class="col-lg-6">
+                        <div class="alert alert-light border d-flex align-items-center mb-0 py-2">
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="filterMachinedCheck" checked>
+                                <label class="form-check-label fw-semibold text-dark" for="filterMachinedCheck">
+                                    Export ONLY items containing <code>Machined From</code>, <code>Fabricated From</code>, <code>Made from</code>, <code>Modified from</code>, <code>Offered</code>, or <code>Locally</code> in remarks
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6 text-lg-end">
+                        <div class="d-inline-flex gap-2 flex-wrap align-items-center bg-light p-2 rounded border">
+                            <span class="fw-bold text-dark small"><i class="bi bi-box-seam text-warning me-1"></i>CIPL Packaging:</span>
+                            <button type="button" class="btn btn-xs btn-outline-primary" onclick="setAllPackaging('Pallet')"><i class="bi bi-stack me-1"></i>Set All Pallet</button>
+                            <button type="button" class="btn btn-xs btn-outline-info text-dark" onclick="setAllPackaging('Box')"><i class="bi bi-box me-1"></i>Set All Box</button>
+                            <button type="button" class="btn btn-xs btn-outline-dark" onclick="setAllPackaging('Crate')"><i class="bi bi-archive me-1"></i>Set All Crate</button>
+                        </div>
                     </div>
                 </div>
 
@@ -392,24 +420,29 @@
                     <table class="table table-bordered table-custom align-middle" id="itemsTable">
                         <thead>
                             <tr>
-                                <th style="width: 60px;">SL NO</th>
-                                <th class="internal-col" style="width: 120px;">
-                                    CLIENT PO ITEM NO<br><span class="badge-internal">Stores Only</span>
+                                <th style="width: 55px;">SL NO</th>
+                                <th class="internal-col" style="width: 110px;">
+                                    CLIENT PO ITEM NO
                                 </th>
-                                <th style="min-width: 400px;">Description</th>
-                                <th style="width: 90px;">PO Qty</th>
-                                <th style="width: 75px;">UOM</th>
-                                <th style="width: 120px;">Heat Number</th>
-                                <th style="width: 130px;">Certificate Number</th>
-                                <th style="width: 100px;">MAKE</th>
-                                <th style="width: 180px;">Remarks</th>
-                                <th class="internal-col" style="width: 150px;">
+                                <th style="min-width: 320px;">Description</th>
+                                <th style="width: 80px;">PO Qty</th>
+                                <th style="width: 70px;">UOM</th>
+                                <th style="width: 95px;">Unit Rate</th>
+                                <th style="width: 105px;">Total Amount</th>
+                                <th style="width: 160px; background-color: #0369a1; border-bottom: 3px solid #38bdf8;">
+                                    PACKAGING (CIPL)<br><span class="badge bg-light text-dark" style="font-size:0.68rem;">Pallet / Box / #</span>
+                                </th>
+                                <th style="width: 110px;">Heat Number</th>
+                                <th style="width: 120px;">Certificate Number</th>
+                                <th style="width: 95px;">MAKE</th>
+                                <th style="width: 160px;">Remarks</th>
+                                <th class="internal-col" style="width: 130px;">
                                     SUPPLIER NAME<br><span class="badge-internal">Stores Only</span>
                                 </th>
-                                <th class="internal-col" style="width: 110px;">
+                                <th class="internal-col" style="width: 95px;">
                                     SUPPLIER PO #<br><span class="badge-internal">Stores Only</span>
                                 </th>
-                                <th style="width: 85px;">Actions</th>
+                                <th style="width: 75px;">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="itemsTableBody">
@@ -437,6 +470,11 @@
                     <button class="btn btn-stores-download" onclick="downloadExcel(true)">
                         <i class="bi bi-shield-lock me-2"></i>Download Internal Stores Sheet (.xlsx)
                         <div style="font-size: 0.75rem; font-weight: normal; opacity: 0.9;">11 Columns (Includes Client PO Item No & Supplier Details)</div>
+                    </button>
+
+                    <button class="btn btn-cipl-download" onclick="downloadCIPL()">
+                        <i class="bi bi-file-earmark-spreadsheet-fill me-2"></i>Download CIPL (.xlsx)
+                        <div style="font-size: 0.75rem; font-weight: normal; opacity: 0.9;">Commercial Invoice & Packing List (Pallet/Box breakdown)</div>
                     </button>
 
                     <button class="btn btn-pdf-download" onclick="exportSupplierPDFs()">
@@ -724,42 +762,64 @@
             const currentSlNo = slNo || (rowCount + 1);
             const tr = document.createElement('tr');
 
+            const pkgType = item.package_type || 'Pallet';
+            const pkgNo = item.package_no || '1';
+
             tr.innerHTML = `
                 <td class="text-center fw-semibold row-sl-no">${currentSlNo}</td>
                 <td class="internal-col text-center">
-                    <input type="text" class="form-control form-control-sm text-center item-client-po-item-no" value="${item.client_po_item_no || ''}" placeholder="1.0">
+                    <input type="text" class="form-control form-control-sm text-center item-client-po-item-no" value="${escapeHtml(item.client_po_item_no || currentSlNo)}" placeholder="1">
                 </td>
                 <td>
-                    <textarea class="form-control desc item-desc" placeholder="Item Description">${item.description || ''}</textarea>
+                    <textarea class="form-control desc item-desc" placeholder="Item Description">${escapeHtml(item.description || '')}</textarea>
                 </td>
                 <td>
-                    <input type="text" class="form-control form-control-sm text-center item-qty" value="${item.qty || ''}">
+                    <input type="text" class="form-control form-control-sm text-center item-qty" value="${escapeHtml(item.qty || '1.00')}" oninput="calculateRowAmount(this)">
                 </td>
                 <td>
-                    <input type="text" class="form-control form-control-sm text-center item-uom" value="${item.uom || ''}">
+                    <input type="text" class="form-control form-control-sm text-center item-uom" value="${escapeHtml(item.uom || 'pcs')}">
                 </td>
                 <td>
-                    <input type="text" class="form-control form-control-sm text-center item-heat" value="${item.heat_number || ''}">
+                    <input type="text" class="form-control form-control-sm text-end item-rate" value="${escapeHtml(item.rate || '')}" placeholder="0.00" oninput="calculateRowAmount(this)">
                 </td>
                 <td>
-                    <input type="text" class="form-control form-control-sm text-center item-cert" value="${item.certificate_number || ''}">
+                    <input type="text" class="form-control form-control-sm text-end item-amount fw-semibold" value="${escapeHtml(item.amount || '')}" placeholder="0.00">
                 </td>
                 <td>
-                    <input type="text" class="form-control form-control-sm text-center item-make" value="${item.make || ''}">
+                    <div class="input-group input-group-sm">
+                        <select class="form-select form-select-sm item-pkg-type" style="max-width: 90px; font-size: 0.8rem;">
+                            <option value="Pallet" ${pkgType === 'Pallet' ? 'selected' : ''}>Pallet</option>
+                            <option value="Box" ${pkgType === 'Box' ? 'selected' : ''}>Box</option>
+                            <option value="Crate" ${pkgType === 'Crate' ? 'selected' : ''}>Crate</option>
+                            <option value="Wooden Box" ${pkgType === 'Wooden Box' ? 'selected' : ''}>W.Box</option>
+                            <option value="Carton" ${pkgType === 'Carton' ? 'selected' : ''}>Carton</option>
+                            <option value="Bundle" ${pkgType === 'Bundle' ? 'selected' : ''}>Bundle</option>
+                        </select>
+                        <input type="text" class="form-control form-control-sm text-center item-pkg-no" value="${escapeHtml(pkgNo)}" placeholder="#" style="max-width: 45px; font-size: 0.8rem;">
+                    </div>
                 </td>
                 <td>
-                    <input type="text" class="form-control form-control-sm item-remarks" value="${item.remarks || ''}">
+                    <input type="text" class="form-control form-control-sm text-center item-heat" value="${escapeHtml(item.heat_number || '')}">
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm text-center item-cert" value="${escapeHtml(item.certificate_number || '')}">
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm text-center item-make" value="${escapeHtml(item.make || '')}">
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm item-remarks" value="${escapeHtml(item.remarks || '')}">
                 </td>
                 <td class="internal-col">
-                    <input type="text" class="form-control form-control-sm item-supplier-name" list="suppliersList" value="${item.supplier_name || ''}" placeholder="Supplier">
+                    <input type="text" class="form-control form-control-sm item-supplier-name" list="suppliersList" value="${escapeHtml(item.supplier_name || '')}" placeholder="Supplier">
                 </td>
                 <td class="internal-col">
-                    <input type="text" class="form-control form-control-sm text-center item-supplier-po" value="${item.supplier_po || ''}" placeholder="PO #">
+                    <input type="text" class="form-control form-control-sm text-center item-supplier-po" value="${escapeHtml(item.supplier_po || '')}" placeholder="PO #">
                 </td>
                 <td class="text-center">
                     <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-success" onclick="splitRow(this)" title="Split row for multi-heat"><i class="bi bi-plus-square"></i></button>
-                        <button class="btn btn-outline-danger" onclick="deleteRow(this)" title="Delete Row"><i class="bi bi-trash"></i></button>
+                        <button class="btn btn-outline-success btn-sm py-0 px-1" onclick="splitRow(this)" title="Split row for multi-heat"><i class="bi bi-plus-square"></i></button>
+                        <button class="btn btn-outline-danger btn-sm py-0 px-1" onclick="deleteRow(this)" title="Delete Row"><i class="bi bi-trash"></i></button>
                     </div>
                 </td>
             `;
@@ -767,11 +827,34 @@
             reindexRows();
         }
 
+        function calculateRowAmount(input) {
+            const tr = input.closest('tr');
+            const qtyStr = tr.querySelector('.item-qty').value.replace(/,/g, '').trim();
+            const rateStr = tr.querySelector('.item-rate').value.replace(/,/g, '').trim();
+            const amtInput = tr.querySelector('.item-amount');
+            
+            const qty = parseFloat(qtyStr);
+            const rate = parseFloat(rateStr);
+            
+            if (!isNaN(qty) && !isNaN(rate)) {
+                amtInput.value = (qty * rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+        }
+
+        function setAllPackaging(pkgType) {
+            const rows = itemsTableBody.querySelectorAll('tr');
+            rows.forEach((row) => {
+                const select = row.querySelector('.item-pkg-type');
+                if (select) select.value = pkgType;
+            });
+        }
+
         function splitRow(btn) {
             const currentTr = btn.closest('tr');
             const newTr = currentTr.cloneNode(true);
             
             newTr.querySelector('.item-qty').value = '';
+            newTr.querySelector('.item-amount').value = '';
             newTr.querySelector('.item-heat').value = '';
             newTr.querySelector('.item-cert').value = '';
 
@@ -803,10 +886,14 @@
             rows.forEach((row, idx) => {
                 items.push({
                     sl_no: idx + 1,
-                    client_po_item_no: row.querySelector('.item-client-po-item-no')?.value.trim() || '',
+                    client_po_item_no: row.querySelector('.item-client-po-item-no')?.value.trim() || String(idx + 1),
                     description: row.querySelector('.item-desc')?.value.trim() || '',
-                    qty: row.querySelector('.item-qty')?.value.trim() || '',
-                    uom: row.querySelector('.item-uom')?.value.trim() || '',
+                    qty: row.querySelector('.item-qty')?.value.trim() || '1.00',
+                    uom: row.querySelector('.item-uom')?.value.trim() || 'pcs',
+                    rate: row.querySelector('.item-rate')?.value.trim() || '',
+                    amount: row.querySelector('.item-amount')?.value.trim() || '',
+                    package_type: row.querySelector('.item-pkg-type')?.value || 'Pallet',
+                    package_no: row.querySelector('.item-pkg-no')?.value.trim() || '1',
                     heat_number: row.querySelector('.item-heat')?.value.trim() || '',
                     certificate_number: row.querySelector('.item-cert')?.value.trim() || '',
                     make: row.querySelector('.item-make')?.value.trim() || '',
@@ -911,6 +998,7 @@
                         <div class="d-flex flex-wrap gap-1 mb-3">
                             ${urls.client_excel_url ? `<a href="${urls.client_excel_url}" target="_blank" class="btn btn-xs btn-outline-success"><i class="bi bi-cloud-download me-1"></i>Client Excel</a>` : ''}
                             ${urls.stores_excel_url ? `<a href="${urls.stores_excel_url}" target="_blank" class="btn btn-xs btn-outline-dark"><i class="bi bi-cloud-download me-1"></i>Stores Excel</a>` : ''}
+                            ${urls.cipl_excel_url ? `<a href="${urls.cipl_excel_url}" target="_blank" class="btn btn-xs btn-outline-primary"><i class="bi bi-cloud-download me-1"></i>CIPL Excel</a>` : ''}
                             ${urls.supplier_pdf_zip_url ? `<a href="${urls.supplier_pdf_zip_url}" target="_blank" class="btn btn-xs btn-outline-danger"><i class="bi bi-file-zip me-1"></i>PDFs ZIP</a>` : ''}
                         </div>
 
@@ -1082,6 +1170,35 @@
                 fetchHistory();
             })
             .catch(err => alert('Error downloading Excel: ' + err.message));
+        }
+
+        function downloadCIPL() {
+            const payload = buildPayload();
+            const poStr = payload.po_number ? "_" + payload.po_number.replace(/\s+/g, '_') : "";
+            const msgStr = payload.msg_ref ? payload.msg_ref.replace(/\s+/g, '_') : "CIPL";
+            const filename = `CIPL_${msgStr}${poStr}.xlsx`;
+
+            fetch('/api/download-cipl', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to generate CIPL document');
+                return response.blob();
+            })
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+                fetchHistory();
+            })
+            .catch(err => alert('Error downloading CIPL: ' + err.message));
         }
 
         function exportSupplierPDFs() {

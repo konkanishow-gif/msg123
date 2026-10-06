@@ -12,6 +12,7 @@ if BASE_DIR not in sys.path:
 from pdf_parser import extract_pdf_data, load_master_suppliers
 from excel_generator import generate_summary_excel
 from supplier_pdf_generator import generate_all_supplier_pdfs_zip
+from cipl_generator import generate_cipl_excel
 import cloudinary_handler
 import history_manager
 
@@ -187,6 +188,13 @@ def save_worksheet():
                 z_url = cloudinary_handler.upload_file_to_cloudinary(zip_stream, folder="supplier_packages", filename=zip_filename)
                 if z_url:
                     file_urls["supplier_pdf_zip_url"] = z_url
+
+                # 4. CIPL (Commercial Invoice & Packing List) Excel
+                cipl_stream = generate_cipl_excel(data)
+                cipl_filename = f"CIPL_{msg_ref}_{po_num}.xlsx"
+                cipl_url = cloudinary_handler.upload_file_to_cloudinary(cipl_stream, folder="cipl_documents", filename=cipl_filename)
+                if cipl_url:
+                    file_urls["cipl_excel_url"] = cipl_url
             except Exception as c_err:
                 print(f"Cloudinary upload error during worksheet save: {c_err}")
 
@@ -243,6 +251,34 @@ def download_excel():
         stream = generate_summary_excel(data, is_internal=is_internal, filter_machined_only=filter_machined_only)
         
         # Save snapshot in background
+        try:
+            history_manager.save_sheet_snapshot(data)
+        except Exception:
+            pass
+
+        return send_file(
+            stream,
+            as_attachment=True,
+            download_name=filename,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/download-cipl', methods=['POST'])
+@login_required
+def download_cipl():
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"error": "No JSON payload provided"}), 400
+
+        msg_ref = data.get("msg_ref", "CIPL").replace(" ", "_")
+        po_num = data.get("po_number", "").replace(" ", "_")
+        filename = f"CIPL_{msg_ref}_{po_num}.xlsx" if po_num else f"CIPL_{msg_ref}.xlsx"
+        
+        stream = generate_cipl_excel(data)
+        
         try:
             history_manager.save_sheet_snapshot(data)
         except Exception:

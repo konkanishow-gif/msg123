@@ -94,55 +94,140 @@ def strip_internal_product_code(description):
                 desc = tokens[1].strip()
     return desc
 
-def extract_pdf_data(pdf_path_or_file):
+def clean_cell_text(v):
+    if not v:
+        return ""
+    return str(v).replace("\n", " ").strip()
+
+def _extract_items_from_tables(pdf):
     """
-    Extracts header metadata (Client, PO Number, MSG Ref) and line items
-    from Sales Order / Purchase Order PDFs.
-    Auto-detects supplier names from master list and machining instructions.
+    Extracts line items using pdfplumber structured tables across all pages.
+    Guarantees column isolation (#, description, client_po_item_no, qty, rate, amount)
+    and seamlessly merges multi-page split descriptions.
     """
-    text = ""
-    try:
-        with pdfplumber.open(pdf_path_or_file) as pdf:
-            for page in pdf.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text += page_text + "\n"
-    except Exception as e:
-        print(f"pdfplumber error: {e}")
+    rows = []
+    for p in pdf.pages:
+        tables = p.extract_tables()
+        for t in tables:
+            for r in t:
+                cr = [clean_cell_text(c) for c in r]
+                if any(cr):
+                    rows.append(cr)
+                    
+    items = []
+    current_item = None
+    
+    for r in rows:
+        row_str = " ".join(r).lower()
+        if "item & description" in row_str or ("client po" in row_str and "rate" in row_str):
+            continue
+        if re.search(r"\b(sub total|zero rate|total|standard rate)\b", row_str) and not re.search(r"\b(valve|gasket|bolt|flange|elbow|pipe|fitting)\b", row_str):
+            continue
+        if re.search(r"\b(duty|vat|tax)\s*\d+%", row_str):
+            continue
+            
+        non_empty = [c for c in r if c]
+        if not non_empty:
+            continue
+            
+        # Ignore standalone page number rows e.g. ['2'] or ['3', '', '']
+        if len(non_empty) == 1 and re.match(r"^\d{1,3}$", non_empty[0]):
+            continue
+            
+        # Check if first non-empty cell is an item sequence number (1, 2, ..., 24, etc.)
+        first_col_num = None
+        sl_col_idx = -1
+        for idx, col_val in enumerate(r):
+            if re.match(r"^[1-9]\d{0,2}$", col_val):
+                num = int(col_val)
+                rem_c = [c for c in r[idx + 1:] if c]
+                if rem_c:
+                    first_col_num = num
+                    sl_col_idx = idx
+                    break
+                
+        if first_col_num is not None and sl_col_idx >= 0:
+            rem_cells = [c for c in r[sl_col_idx + 1:] if c]
+            
+            # Filter out duty/vat rows that have a number
+            combined_rem = " ".join(rem_cells).lower()
+            if re.search(r"\b(duty|vat|tax)\s*\d+%", combined_rem):
+                continue
+                
+            if current_item:
+                items.append(current_item)
+                current_item = None
+                
+            desc = ""
+            client_po_no = str(first_col_num)
+            qty = "1.00"
+            uom = "pcs"
+            rate = ""
+            amount = ""
+            
+            if len(rem_cells) == 1:
+                if re.search(r"[\d,]+\.\d{2}", rem_cells[0]):
+                    amount = rem_cells[0]
+                else:
+                    desc = rem_cells[0]
+            elif len(rem_cells) >= 2:
+                amount = rem_cells[-1] if re.search(r"[\d,]+\.\d{2}", rem_cells[-1]) else ""
+                rate = rem_cells[-2] if len(rem_cells) >= 2 and re.search(r"[\d,]+\.\d{2}", rem_cells[-2]) else ""
+                
+                remaining = rem_cells[:-2] if (amount and rate) else rem_cells[:-1]
+                
+                if remaining and re.search(r"\d+(?:\.\d+)?", remaining[-1]):
+                    qty_raw = remaining[-1]
+                    remaining = remaining[:-1]
+                    
+                    qty_m = re.search(r"([\d,]+(?:\.\d+)?)", qty_raw)
+                    if qty_m:
+                        qty = qty_m.group(1).replace(",", "")
+                    uom_m = re.search(r"\b(pcs|ea|set|mtr|nos|pkg|m|kg|box|pallet)\b", qty_raw, re.I)
+                    if uom_m:
+                        uom = uom_m.group(1).lower()
+                        
+                if remaining and re.match(r"^\d+$", remaining[-1]):
+                    client_po_no = remaining[-1]
+                    remaining = remaining[:-1]
+                    
+                desc = " ".join(remaining).strip()
+                
+            current_item = {
+                "sl_no": first_col_num,
+                "client_po_item_no": client_po_no,
+                "description": desc,
+                "qty": qty,
+                "uom": uom,
+                "rate": rate,
+                "amount": amount,
+                "remarks": "",
+                "make": "",
+                "supplier_name": "",
+                "supplier_po": "",
+                "package_type": "Pallet",
+                "package_no": "1"
+            }
+        else:
+            if current_item:
+                extra_desc = " ".join(non_empty).strip()
+                if extra_desc and not re.search(r"\b(sub total|total|vat|duty)\b", extra_desc.lower()):
+                    if current_item["description"]:
+                        current_item["description"] = (current_item["description"] + " " + extra_desc).strip()
+                    else:
+                        current_item["description"] = extra_desc
 
-    if not text.strip() and isinstance(pdf_path_or_file, str):
-        try:
-            with open(pdf_path_or_file, 'r', encoding='utf-8', errors='ignore') as f:
-                text = f.read()
-        except Exception:
-            pass
+    if current_item:
+        items.append(current_item)
 
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
-    full_text = "\n".join(lines)
+    return items
 
-    # --- Header Parsing ---
-    client = ""
-    po_number = ""
-    msg_ref = ""
-
-    so_match = re.search(r"(?:Sales\s*Order\s*#|MSG\s*Ref\s*:?)\s*([A-Z0-9\-_]+)", full_text, re.IGNORECASE)
-    if so_match:
-        msg_ref = so_match.group(1).strip()
-
-    po_match = re.search(r"(?:Ref\s*#\s*:?|PO\s*(?:Number|#)?\s*:?)\s*([A-Z0-9\-_]+)", full_text, re.IGNORECASE)
-    if po_match:
-        po_number = po_match.group(1).strip()
-
-    client_match = re.search(r"(?:Bill\s*To|Client\s*:?)\s*\n?([^\n]+)", full_text, re.IGNORECASE)
-    if client_match:
-        raw_client = client_match.group(1).strip()
-        raw_client = re.sub(r"-AED$", "", raw_client, flags=re.IGNORECASE).strip()
-        client = raw_client
-
-    # --- Line Items Parsing ---
+def _extract_items_from_text(lines):
+    """
+    Fallback text-based line parser for unstructured or unbordered PDFs.
+    """
     items = []
     item_pattern = re.compile(r"^([1-9]\d{0,2})\s+(.+)")
-    
     in_items = False
     current_item = None
 
@@ -160,6 +245,13 @@ def extract_pdf_data(pdf_path_or_file):
         if in_items:
             m = item_pattern.match(line)
             if m:
+                rest_txt = m.group(2).strip()
+                # Check if this line is actually a continuation line that happens to start with a number like "300 LBS" or "316 BALL"
+                if re.match(r"^(?:300|150|600|900|1500|2500)\s*(?:LBS|#|PSI|RF|RTJ|SCH)", rest_txt, re.I) or re.match(r"^(?:316|304|316L|304L|A105|LF2|WCB)\s*(?:BALL|STEM|BODY|TRIM|INSERT)", rest_txt, re.I):
+                    if current_item:
+                        current_item["description"] += " " + line
+                        continue
+
                 if current_item:
                     items.append(current_item)
                     current_item = None
@@ -170,17 +262,20 @@ def extract_pdf_data(pdf_path_or_file):
                 num_pattern = re.compile(r"([\d,]+\.\d{2})")
                 matches = list(num_pattern.finditer(rest))
 
-                qty = ""
-                uom = ""
+                qty = "1.00"
+                uom = "pcs"
                 description = rest
+                rate = ""
+                amount = ""
 
-                client_po_item_no = ""
+                client_po_item_no = str(sl_no)
                 if len(matches) >= 2:
+                    rate = matches[-2].group(1)
+                    amount = matches[-1].group(1)
                     rate_idx = matches[-2].start()
                     desc_part = rest[:rate_idx].strip()
                     
                     sub_tokens = desc_part.split()
-                    
                     for idx in range(len(sub_tokens) - 1, -1, -1):
                         token = sub_tokens[idx]
                         if re.match(r"^\d+(?:\.\d+)?$", token):
@@ -189,7 +284,7 @@ def extract_pdf_data(pdf_path_or_file):
                                 uom = sub_tokens[idx + 1]
                             
                             desc_sub = sub_tokens[:idx]
-                            if desc_sub and re.match(r"^\d{4,5}$", desc_sub[-1]):
+                            if desc_sub and re.match(r"^\d{1,5}$", desc_sub[-1]):
                                 client_po_item_no = desc_sub[-1]
                                 desc_sub = desc_sub[:-1]
                             
@@ -198,23 +293,25 @@ def extract_pdf_data(pdf_path_or_file):
 
                 current_item = {
                     "sl_no": int(sl_no),
-                    "client_po_item_no": client_po_item_no if client_po_item_no else str(sl_no),
+                    "client_po_item_no": client_po_item_no,
                     "description": description.strip(),
                     "qty": qty if qty else "1.00",
-                    "uom": uom if uom else "",
+                    "uom": uom if uom else "pcs",
+                    "rate": rate,
+                    "amount": amount,
                     "heat_number": "",
                     "certificate_number": "",
                     "make": "",
                     "remarks": "",
                     "supplier_name": "",
-                    "supplier_po": ""
+                    "supplier_po": "",
+                    "package_type": "Pallet",
+                    "package_no": "1"
                 }
             else:
                 if current_item:
                     if not re.search(r"Sub\s*Total|Standard\s*Rate|Total|VAT|Page|\d+\s*of\s*\d+", line, re.IGNORECASE):
-                        # Filter out lines that are purely prices or standalone numbers e.g. "10000 3.00 150.00 450.00"
                         if re.match(r"^[\d\s.,pcsEAea\/]+$", line) and re.search(r"\d+\.\d{2}", line):
-                            # Contains rate/amount numeric values - extract UOM if missing
                             uom_m = re.search(r"\b(pcs|ea|set|mtr|nos|pkg)\b", line, re.IGNORECASE)
                             if uom_m and not current_item["uom"]:
                                 current_item["uom"] = uom_m.group(1).lower()
@@ -245,15 +342,76 @@ def extract_pdf_data(pdf_path_or_file):
     if current_item:
         items.append(current_item)
 
-    # Post-process items to strip product codes & auto-detect supplier
+    return items
+
+def extract_pdf_data(pdf_path_or_file):
+    """
+    Extracts header metadata (Client, PO Number, MSG Ref) and line items
+    from Sales Order / Purchase Order PDFs.
+    Auto-detects supplier names from master list and machining instructions.
+    """
+    full_text = ""
+    table_items = []
+    try:
+        with pdfplumber.open(pdf_path_or_file) as pdf:
+            # Extract full text for headers
+            for page in pdf.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    full_text += page_text + "\n"
+            
+            # Primary: Extract structured tables
+            table_items = _extract_items_from_tables(pdf)
+    except Exception as e:
+        print(f"pdfplumber error: {e}")
+
+    if not full_text.strip() and isinstance(pdf_path_or_file, str):
+        try:
+            with open(pdf_path_or_file, 'r', encoding='utf-8', errors='ignore') as f:
+                full_text = f.read()
+        except Exception:
+            pass
+
+    lines = [line.strip() for line in full_text.splitlines() if line.strip()]
+
+    # --- Header Parsing ---
+    client = ""
+    po_number = ""
+    msg_ref = ""
+
+    so_match = re.search(r"(?:Sales\s*Order\s*#|MSG\s*Ref\s*:?)\s*([A-Z0-9\-_]+)", full_text, re.IGNORECASE)
+    if so_match:
+        msg_ref = so_match.group(1).strip()
+
+    po_match = re.search(r"(?:Ref\s*#\s*:?|PO\s*(?:Number|#)?\s*:?)\s*([A-Z0-9\-_]+)", full_text, re.IGNORECASE)
+    if po_match:
+        po_number = po_match.group(1).strip()
+
+    client_match = re.search(r"(?:Bill\s*To|Client\s*:?)\s*\n?([^\n]+)", full_text, re.IGNORECASE)
+    if client_match:
+        raw_client = client_match.group(1).strip()
+        raw_client = re.sub(r"-AED$", "", raw_client, flags=re.IGNORECASE).strip()
+        client = raw_client
+
+    # Choose table items if available, else fallback to text parser
+    if table_items and len(table_items) > 0:
+        items = table_items
+    else:
+        items = _extract_items_from_text(lines)
+
+    # Post-process items to clean descriptions, auto-detect MAKE & suppliers
     for item in items:
+        # Strip header leakage if any (e.g. "1 Client PO Item No")
+        item["description"] = re.sub(r"\b\d+\s+Client\s+PO\s+Item\s+No\b", "", item["description"], flags=re.IGNORECASE).strip()
+        item["description"] = re.sub(r"\bClient\s+PO\s+Item\s+No\b", "", item["description"], flags=re.IGNORECASE).strip()
+
         # Strip leading item sequence numbers e.g. "1 ECC. RED..." -> "ECC. RED..."
         item["description"] = strip_leading_item_number(item["description"], item["sl_no"])
 
-        raw_full = item["description"] + " " + item["remarks"]
+        raw_full = item["description"] + " " + item.get("remarks", "")
 
         # Auto-detect MAKE from code / raw item description if empty
-        if not item["make"]:
+        if not item.get("make"):
             detected_make = auto_detect_make(raw_full)
             if detected_make:
                 item["make"] = detected_make
@@ -268,7 +426,7 @@ def extract_pdf_data(pdf_path_or_file):
             remark_text = rem_match.group(0).strip()
             cleaned_desc = REMARK_PATTERN.sub('', item["description"]).rstrip(' -:,;')
             item["description"] = cleaned_desc
-            if item["remarks"]:
+            if item.get("remarks"):
                 if remark_text.lower() not in item["remarks"].lower():
                     item["remarks"] += "; " + remark_text
             else:
@@ -281,13 +439,23 @@ def extract_pdf_data(pdf_path_or_file):
         item["description"] = strip_leading_item_number(item["description"], item["sl_no"])
 
         # Master Supplier Auto-match (if supplier_name is not already set)
-        if not item["supplier_name"]:
-            desc_rem = (item["description"] + " " + item["remarks"]).lower()
+        if not item.get("supplier_name"):
+            desc_rem = (item["description"] + " " + item.get("remarks", "")).lower()
             for supplier in MASTER_SUPPLIERS:
                 core_name = re.sub(r"\b(LLC|FZE|FZC|L\.L\.C|PTE|LTD|CO|INC|S\.P\.A|BV)\b", "", supplier, flags=re.IGNORECASE).strip()
                 if len(core_name) > 3 and core_name.lower() in desc_rem:
                     item["supplier_name"] = supplier
                     break
+
+        # Ensure default packaging fields
+        if not item.get("package_type"):
+            item["package_type"] = "Pallet"
+        if not item.get("package_no"):
+            item["package_no"] = "1"
+        if "heat_number" not in item:
+            item["heat_number"] = ""
+        if "certificate_number" not in item:
+            item["certificate_number"] = ""
 
     return {
         "client": client,

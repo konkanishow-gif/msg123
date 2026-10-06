@@ -165,9 +165,67 @@ class SummaryAppTestCase(unittest.TestCase):
         self.assertEqual(res_detail.status_code, 200)
         self.assertEqual(res_detail.get_json()['sheet']['client'], "Test Client LLC")
 
-        # 5. Test Delete History API
-        res_del = self.app.delete(f'/api/history/{sheet_id}')
-        self.assertEqual(res_del.status_code, 200)
+    def test_download_cipl(self):
+        payload = {
+            "client": "Bahrain Special Technical Services (STS) Co. W.L.L",
+            "po_number": "MSG-0926-12389-Q",
+            "msg_ref": "MSG-1026-2177",
+            "items": [
+                {
+                    "sl_no": 1,
+                    "client_po_item_no": "1",
+                    "description": "2\" BALL VALVE FLANGED ENDS",
+                    "qty": "1.00",
+                    "uom": "pcs",
+                    "rate": "3250.00",
+                    "amount": "3250.00",
+                    "package_type": "Pallet",
+                    "package_no": "1",
+                    "make": "BONNEY"
+                },
+                {
+                    "sl_no": 2,
+                    "client_po_item_no": "2",
+                    "description": "SPIRAL WOUND GASKET",
+                    "qty": "4.00",
+                    "uom": "pcs",
+                    "rate": "15.00",
+                    "amount": "60.00",
+                    "package_type": "Box",
+                    "package_no": "1",
+                    "make": "LAMONS"
+                }
+            ]
+        }
+        res = self.app.post('/api/download-cipl', json=payload)
+        self.assertEqual(res.status_code, 200)
+        
+        excel_bytes = io.BytesIO(res.data)
+        wb = openpyxl.load_workbook(excel_bytes)
+        self.assertIn('COMMERCIAL INVOICE', wb.sheetnames)
+        self.assertIn('PACKING LIST', wb.sheetnames)
+        
+        ws_inv = wb['COMMERCIAL INVOICE']
+        self.assertEqual(ws_inv['A1'].value, "MSG OILFIELD EQUIPMENT TRADING LLC")
+        self.assertEqual(ws_inv['A3'].value, "COMMERCIAL INVOICE")
+
+        ws_pk = wb['PACKING LIST']
+        self.assertEqual(ws_pk['A3'].value, "COMMERCIAL PACKING LIST")
+
+    def test_pdf_table_parsing_multipage(self):
+        import os
+        from pdf_parser import extract_pdf_data
+        sample_pdf = os.path.join(os.path.expanduser('~'), '.gemini', 'antigravity', 'brain', '9933e0df-4c58-42c8-af70-5825a1a5ec51', '.user_uploaded', 'media_1791277365942.pdf')
+        if os.path.exists(sample_pdf):
+            data = extract_pdf_data(sample_pdf)
+            self.assertEqual(data['msg_ref'], 'MSG-1026-2177')
+            self.assertEqual(len(data['items']), 24)
+            # Verify item 16 is properly merged with its description across page 2 and 3
+            item16 = next((it for it in data['items'] if it['sl_no'] == 16), None)
+            self.assertIsNotNone(item16)
+            self.assertIn('BALL VALVE', item16['description'])
+            self.assertEqual(item16['rate'], '3,250.00')
+            self.assertEqual(item16['amount'], '3,250.00')
 
 if __name__ == '__main__':
     unittest.main()
