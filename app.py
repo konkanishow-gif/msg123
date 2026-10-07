@@ -202,7 +202,8 @@ def save_worksheet():
             except Exception as c_err:
                 print(f"Cloudinary upload error during worksheet save: {c_err}")
 
-        record = history_manager.save_sheet_snapshot(data, file_urls=file_urls)
+        editor_user = session.get('username') or data.get('editor_username') or 'Admin'
+        record = history_manager.save_sheet_snapshot(data, file_urls=file_urls, editor_username=editor_user)
 
         return jsonify({
             "success": True,

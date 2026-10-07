@@ -119,11 +119,11 @@ def get_sheet_by_id(sheet_id):
             return s
     return None
 
-def save_sheet_snapshot(data, file_urls=None):
+def save_sheet_snapshot(data, file_urls=None, editor_username="Admin"):
     """
     Saves or updates a worksheet state snapshot in the history database.
-    data: JSON payload with client, po_number, msg_ref, items, filter_machined_only
-    file_urls: dict with client_excel_url, stores_excel_url, supplier_pdf_zip_url
+    data: JSON payload with client, po_number, msg_ref, items, filter_machined_only, editor_username
+    file_urls: dict with client_excel_url, stores_excel_url, cipl_excel_url, supplier_pdf_zip_url
     """
     target_file = _ensure_history_file()
     sheets = get_all_sheets()
@@ -132,12 +132,24 @@ def save_sheet_snapshot(data, file_urls=None):
     po_number = data.get("po_number", "").strip()
     client = data.get("client", "").strip()
     items = data.get("items", [])
+    author = data.get("editor_username") or editor_username or "Admin"
 
-    # Create unique ID if not present
+    # Create unique ID if not present or if save_as_new_draft is requested
     existing_id = data.get("id")
-    sheet_id = existing_id if existing_id else f"sheet_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+    save_new = bool(data.get("save_as_new_draft", False))
+
+    if existing_id and not save_new:
+        sheet_id = existing_id
+    else:
+        sheet_id = f"draft_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
 
     formatted_date = datetime.now().strftime('%d %b %Y, %I:%M %p')
+
+    # Preserve existing file URLs if not updated in this call
+    existing_record = get_sheet_by_id(sheet_id) if existing_id else None
+    merged_urls = existing_record.get('file_urls', {}) if existing_record else {}
+    if file_urls:
+        merged_urls.update(file_urls)
 
     record = {
         "id": sheet_id,
@@ -146,13 +158,14 @@ def save_sheet_snapshot(data, file_urls=None):
         "client": client,
         "po_number": po_number,
         "msg_ref": msg_ref,
+        "editor_username": author,
         "item_count": len(items),
         "filter_machined_only": bool(data.get("filter_machined_only", True)),
         "items": items,
-        "file_urls": file_urls or {}
+        "file_urls": merged_urls
     }
 
-    # Remove existing record if updating
+    # Remove existing record if updating same ID
     sheets = [s for s in sheets if s.get('id') != sheet_id]
     sheets.insert(0, record)
 

@@ -93,9 +93,11 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
         for c in range(1, 9):
             ws_inv.cell(row=r, column=c).border = thin_border
             
-    # Table Headers
-    inv_headers = ['SL NO', 'CLIENT PO ITEM NO', 'DESCRIPTION OF GOODS', 'MAKE', 'QTY', 'UOM', 'UNIT RATE', 'TOTAL AMOUNT']
-    inv_col_widths = [8, 20, 65, 20, 12, 10, 16, 18]
+    from pdf_parser import auto_detect_country_of_origin, auto_detect_hs_code
+
+    # Table Headers for Commercial Invoice (10 Cols)
+    inv_headers = ['SL NO', 'CLIENT PO ITEM NO', 'DESCRIPTION OF GOODS', 'HS CODE', 'COUNTRY OF ORIGIN', 'MAKE', 'QTY', 'UOM', 'UNIT RATE', 'TOTAL AMOUNT']
+    inv_col_widths = [8, 20, 55, 14, 18, 18, 12, 10, 16, 18]
     
     header_row = 9
     ws_inv.row_dimensions[header_row].height = 25
@@ -118,6 +120,10 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
         client_po_it = it.get('client_po_item_no', str(sl))
         desc = it.get('description', '')
         make = it.get('make', '')
+        
+        hs_code = it.get('hs_code') or auto_detect_hs_code(desc)
+        coo = it.get('country_of_origin') or auto_detect_country_of_origin(make, desc)
+        
         qty_str = str(it.get('qty', '1')).replace(',', '').strip()
         
         # Check if qty is in "X OF Y" format
@@ -156,27 +162,29 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
         ws_inv.cell(row=current_row, column=1, value=sl).alignment = Alignment(horizontal='center', vertical='center')
         ws_inv.cell(row=current_row, column=2, value=client_po_it).alignment = Alignment(horizontal='center', vertical='center')
         ws_inv.cell(row=current_row, column=3, value=desc).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
-        ws_inv.cell(row=current_row, column=4, value=make).alignment = Alignment(horizontal='center', vertical='center')
+        ws_inv.cell(row=current_row, column=4, value=hs_code).alignment = Alignment(horizontal='center', vertical='center')
+        ws_inv.cell(row=current_row, column=5, value=coo).alignment = Alignment(horizontal='center', vertical='center')
+        ws_inv.cell(row=current_row, column=6, value=make).alignment = Alignment(horizontal='center', vertical='center')
         
         if is_of_format:
-            c_qty = ws_inv.cell(row=current_row, column=5, value=qty_str.upper())
+            c_qty = ws_inv.cell(row=current_row, column=7, value=qty_str.upper())
             c_qty.alignment = Alignment(horizontal='center', vertical='center')
         else:
-            c_qty = ws_inv.cell(row=current_row, column=5, value=qty_val)
+            c_qty = ws_inv.cell(row=current_row, column=7, value=qty_val)
             c_qty.alignment = Alignment(horizontal='right', vertical='center')
             c_qty.number_format = '#,##0.00'
         
-        ws_inv.cell(row=current_row, column=6, value=uom).alignment = Alignment(horizontal='center', vertical='center')
+        ws_inv.cell(row=current_row, column=8, value=uom).alignment = Alignment(horizontal='center', vertical='center')
         
-        c_rate = ws_inv.cell(row=current_row, column=7, value=rate_val)
+        c_rate = ws_inv.cell(row=current_row, column=9, value=rate_val)
         c_rate.alignment = Alignment(horizontal='right', vertical='center')
         c_rate.number_format = '#,##0.00'
         
-        c_amt = ws_inv.cell(row=current_row, column=8, value=amt_val)
+        c_amt = ws_inv.cell(row=current_row, column=10, value=amt_val)
         c_amt.alignment = Alignment(horizontal='right', vertical='center')
         c_amt.number_format = '#,##0.00'
         
-        for c in range(1, 9):
+        for c in range(1, 11):
             ws_inv.cell(row=current_row, column=c).border = thin_border
             ws_inv.cell(row=current_row, column=c).font = data_font
             if i % 2 == 0:
@@ -186,17 +194,17 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
         current_row += 1
         
     # Total Row
-    ws_inv.merge_cells(f'A{current_row}:G{current_row}')
+    ws_inv.merge_cells(f'A{current_row}:I{current_row}')
     ws_inv[f'A{current_row}'] = 'TOTAL COMMERCIAL VALUE'
     ws_inv[f'A{current_row}'].font = data_bold_font
     ws_inv[f'A{current_row}'].alignment = Alignment(horizontal='right', vertical='center')
     
-    c_tot = ws_inv.cell(row=current_row, column=8, value=total_invoice_amt)
+    c_tot = ws_inv.cell(row=current_row, column=10, value=total_invoice_amt)
     c_tot.font = data_bold_font
     c_tot.alignment = Alignment(horizontal='right', vertical='center')
     c_tot.number_format = '#,##0.00'
     
-    for c in range(1, 9):
+    for c in range(1, 11):
         ws_inv.cell(row=current_row, column=c).border = thin_border
         ws_inv.cell(row=current_row, column=c).fill = total_fill
     ws_inv.row_dimensions[current_row].height = 25
@@ -250,8 +258,8 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
         for c in range(1, 10):
             ws_pk.cell(row=r, column=c).border = thin_border
             
-    pk_headers = ['PACKAGE NO / TYPE', 'SL NO', 'CLIENT PO ITEM NO', 'DESCRIPTION OF GOODS', 'QTY', 'UOM', 'NET WT (KG)', 'GROSS WT (KG)', 'DIMENSIONS (CM)']
-    pk_col_widths = [20, 8, 20, 60, 10, 10, 14, 14, 18]
+    pk_headers = ['PACKAGE NO / TYPE', 'SL NO', 'CLIENT PO ITEM NO', 'DESCRIPTION OF GOODS', 'HS CODE', 'COUNTRY OF ORIGIN', 'QTY', 'UOM', 'NET WT (KG)', 'GROSS WT (KG)', 'DIMENSIONS (CM)']
+    pk_col_widths = [20, 8, 20, 50, 14, 18, 10, 10, 14, 14, 18]
     
     header_row_pk = 8
     ws_pk.row_dimensions[header_row_pk].height = 25
@@ -279,6 +287,11 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
         sl = it.get('sl_no', i)
         client_po_it = it.get('client_po_item_no', str(sl))
         desc = it.get('description', '')
+        make = it.get('make', '')
+        
+        hs_code = it.get('hs_code') or auto_detect_hs_code(desc)
+        coo = it.get('country_of_origin') or auto_detect_country_of_origin(make, desc)
+        
         qty_str = str(it.get('qty', '1')).replace(',', '').strip()
         
         is_of_format = bool(re.search(r'\b(?:OF|of)\b', qty_str))
@@ -307,21 +320,23 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
         ws_pk.cell(row=current_pk_row, column=2, value=sl).alignment = Alignment(horizontal='center', vertical='center')
         ws_pk.cell(row=current_pk_row, column=3, value=client_po_it).alignment = Alignment(horizontal='center', vertical='center')
         ws_pk.cell(row=current_pk_row, column=4, value=desc).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+        ws_pk.cell(row=current_pk_row, column=5, value=hs_code).alignment = Alignment(horizontal='center', vertical='center')
+        ws_pk.cell(row=current_pk_row, column=6, value=coo).alignment = Alignment(horizontal='center', vertical='center')
         
         if is_of_format:
-            c_q = ws_pk.cell(row=current_pk_row, column=5, value=qty_str.upper())
+            c_q = ws_pk.cell(row=current_pk_row, column=7, value=qty_str.upper())
             c_q.alignment = Alignment(horizontal='center', vertical='center')
         else:
-            c_q = ws_pk.cell(row=current_pk_row, column=5, value=qty_val)
+            c_q = ws_pk.cell(row=current_pk_row, column=7, value=qty_val)
             c_q.alignment = Alignment(horizontal='right', vertical='center')
             c_q.number_format = '#,##0.00'
         
-        ws_pk.cell(row=current_pk_row, column=6, value=uom).alignment = Alignment(horizontal='center', vertical='center')
-        ws_pk.cell(row=current_pk_row, column=7, value=net_wt).alignment = Alignment(horizontal='center', vertical='center')
-        ws_pk.cell(row=current_pk_row, column=8, value=gross_wt).alignment = Alignment(horizontal='center', vertical='center')
-        ws_pk.cell(row=current_pk_row, column=9, value=dims).alignment = Alignment(horizontal='center', vertical='center')
+        ws_pk.cell(row=current_pk_row, column=8, value=uom).alignment = Alignment(horizontal='center', vertical='center')
+        ws_pk.cell(row=current_pk_row, column=9, value=net_wt).alignment = Alignment(horizontal='center', vertical='center')
+        ws_pk.cell(row=current_pk_row, column=10, value=gross_wt).alignment = Alignment(horizontal='center', vertical='center')
+        ws_pk.cell(row=current_pk_row, column=11, value=dims).alignment = Alignment(horizontal='center', vertical='center')
         
-        for c in range(1, 10):
+        for c in range(1, 12):
             ws_pk.cell(row=current_pk_row, column=c).border = thin_border
             ws_pk.cell(row=current_pk_row, column=c).font = data_font
             if i % 2 == 0:
@@ -331,17 +346,17 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
         current_pk_row += 1
         
     # Total Packing Summary Row
-    ws_pk.merge_cells(f'A{current_pk_row}:D{current_pk_row}')
+    ws_pk.merge_cells(f'A{current_pk_row}:F{current_pk_row}')
     ws_pk[f'A{current_pk_row}'] = f'TOTAL: {len(packages_seen)} PACKAGE(S) | {len(items)} LINE ITEMS'
     ws_pk[f'A{current_pk_row}'].font = data_bold_font
     ws_pk[f'A{current_pk_row}'].alignment = Alignment(horizontal='left', vertical='center')
     
-    c_tot_q = ws_pk.cell(row=current_pk_row, column=5, value=total_qty)
+    c_tot_q = ws_pk.cell(row=current_pk_row, column=7, value=total_qty)
     c_tot_q.font = data_bold_font
     c_tot_q.alignment = Alignment(horizontal='right', vertical='center')
     c_tot_q.number_format = '#,##0.00'
     
-    for c in range(1, 10):
+    for c in range(1, 12):
         ws_pk.cell(row=current_pk_row, column=c).border = thin_border
         ws_pk.cell(row=current_pk_row, column=c).fill = total_fill
     ws_pk.row_dimensions[current_pk_row].height = 25

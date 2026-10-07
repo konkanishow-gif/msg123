@@ -63,6 +63,66 @@ def auto_detect_make(raw_text):
             return make_val
     return ""
 
+def auto_detect_country_of_origin(make_text="", desc_text=""):
+    """
+    Auto-detects Country of Origin (COO) for CIPL from MAKE or description.
+    """
+    text = f"{make_text} {desc_text}".upper()
+    if re.search(r"\b(FRANCE|DELCORTE)\b", text):
+        return "France"
+    if re.search(r"\b(GERMANY|OMSA|WMASS|WMAASS)\b", text):
+        return "Germany"
+    if re.search(r"\b(ITALY|METALFAR|MFF|MELESI|MEGA|RACCORTUBI)\b", text):
+        return "Italy"
+    if re.search(r"\b(KOREA|TK|ST&H|STH|SEGYUNG)\b", text):
+        return "South Korea"
+    if re.search(r"\b(THAILAND|BENKAN)\b", text):
+        return "Thailand"
+    if re.search(r"\b(SPAIN|ULMA)\b", text):
+        return "Spain"
+    if re.search(r"\b(USA|UNITED STATES|VALVEWORKS)\b", text):
+        return "USA"
+    if re.search(r"\b(UK|UNITED KINGDOM|ENGLAND)\b", text):
+        return "United Kingdom"
+    if re.search(r"\b(JAPAN|KITZ)\b", text):
+        return "Japan"
+    if re.search(r"\b(INDIA)\b", text):
+        return "India"
+    if re.search(r"\b(CHINA)\b", text):
+        return "China"
+    return "France" if "DELCORTE" in text else ("Italy" if "METALFAR" in text else "UAE")
+
+def auto_detect_hs_code(desc_text=""):
+    """
+    Auto-detects HS Tariff Code for CIPL export based on product fitting category.
+    """
+    if not desc_text:
+        return "7307.93.00"
+    text = desc_text.upper()
+    if re.search(r"\b(FLANGE|WNRF|BLIND|SPECTACLE|SLIP-ON|SO\s*FLANGE|SW\s*FLANGE|RTJ\s*FLANGE)\b", text):
+        if re.search(r"\b(316|316L|304|304L|SS|STAINLESS|INCONEL|DUPLEX|SUPER DUPLEX)\b", text):
+            return "7307.21.00"
+        return "7307.91.00"
+    if re.search(r"\b(ELBOW|TEE|REDUCER|CAP|CROSS|ECC\.?\s*RED|CONC\.?\s*RED|BEND)\b", text):
+        if re.search(r"\b(316|316L|304|304L|SS|STAINLESS)\b", text):
+            return "7307.23.00"
+        return "7307.93.00"
+    if re.search(r"\b(SWAGE|NIPPLE|COUPLING|UNION|WELDOLET|SOCKOLET|THREADOLET|NIPPOLET|LATROLET|BUSHING|PLUG|OLET)\b", text):
+        if re.search(r"\b(316|316L|304|304L|SS|STAINLESS)\b", text):
+            return "7307.29.00"
+        return "7307.92.00"
+    if re.search(r"\b(PIPE|TUBE|SMLS|TUBING)\b", text):
+        if re.search(r"\b(316|316L|304|304L|SS|STAINLESS)\b", text):
+            return "7304.41.00"
+        return "7304.19.00"
+    if re.search(r"\b(VALVE|BALL VALVE|CHECK VALVE|GATE VALVE|GLOBE VALVE|NEEDLE VALVE|BUTTERFLY)\b", text):
+        return "8481.80.00"
+    if re.search(r"\b(GASKET|SPIRAL WOUND|INSULATION KIT|RING JOINT)\b", text):
+        return "6812.99.00"
+    if re.search(r"\b(STUD|BOLT|NUT|FASTENER|WASHER)\b", text):
+        return "7318.15.00"
+    return "7307.93.00"
+
 def strip_leading_item_number(description, sl_no=None):
     """
     Strips leading item sequence numbers (e.g. '1 ', '2 ', '1. ', '01 ') from the beginning of descriptions,
@@ -457,7 +517,7 @@ def extract_pdf_data(pdf_path_or_file):
         # Strip leading item number again if revealed after code stripping
         item["description"] = strip_leading_item_number(item["description"], item["sl_no"])
 
-        # Ensure default packaging fields
+        # Ensure default packaging & CIPL fields
         if not item.get("package_type"):
             item["package_type"] = "Pallet"
         if not item.get("package_no"):
@@ -466,6 +526,10 @@ def extract_pdf_data(pdf_path_or_file):
             item["heat_number"] = ""
         if "certificate_number" not in item:
             item["certificate_number"] = ""
+        if not item.get("country_of_origin"):
+            item["country_of_origin"] = auto_detect_country_of_origin(item.get("make", ""), item.get("description", ""))
+        if not item.get("hs_code"):
+            item["hs_code"] = auto_detect_hs_code(item.get("description", ""))
 
     # Group items by client_po_item_no to auto-detect split batches (e.g. 14 pcs stock & 26 pcs local market -> 14 OF 40 & 26 OF 40)
     from collections import defaultdict

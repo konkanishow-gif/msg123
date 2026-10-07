@@ -260,6 +260,24 @@
             box-shadow: 0 8px 24px rgba(0,0,0,0.08);
         }
 
+        /* Sticky Selection Action Bar */
+        .selection-bar {
+            position: sticky;
+            top: 12px;
+            z-index: 1025;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            border: 2px solid #f59e0b;
+            border-radius: 12px;
+            padding: 12px 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+            margin-bottom: 1.25rem;
+            animation: slideDown 0.2s ease-out;
+        }
+        @keyframes slideDown {
+            from { transform: translateY(-10px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
         /* Excel Sheet Preview Styling */
         .excel-frame {
             border: 2px solid #217346;
@@ -319,7 +337,7 @@
             <div><i class="bi bi-shield-check text-warning me-1"></i> MSG OILFIELD TECHNICAL PORTAL</div>
             <div><span>Material Solutions Grid</span> &bull; Sourcing - Reliable & Systematic</div>
             <div class="d-flex align-items-center gap-3">
-                <div><i class="bi bi-person-circle text-warning me-1"></i> <span class="text-white fw-semibold">{{ username|default('admin') }}</span></div>
+                <div><i class="bi bi-person-circle text-warning me-1"></i> <span id="currentUsernameBadge" class="text-white fw-semibold">{{ username|default('admin') }}</span></div>
                 <a href="/logout" class="btn btn-sm btn-outline-danger py-0 text-white border-0" title="Sign Out"><i class="bi bi-box-arrow-right me-1"></i>Logout</a>
                 <div><i class="bi bi-globe me-1"></i> www.msgoilfield.com</div>
             </div>
@@ -385,16 +403,44 @@
                 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                     <div>
                         <h5 class="fw-bold text-dark mb-0 d-inline-block me-3"><i class="bi bi-table text-warning me-2"></i>Summary Line Items (Live Preview)</h5>
-                        <small class="text-muted"><i class="bi bi-info-circle"></i> Description box is fully resizable. Click <strong>Preview Excel Sheet Layout</strong> to view visual table before download.</small>
+                        <small class="text-muted"><i class="bi bi-info-circle"></i> Use checkboxes on the left to Convert selected items to <strong>Supplier PO</strong> or <strong>CIPL</strong>.</small>
                     </div>
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-sm btn-msg-primary" onclick="saveWorksheetProgress()"><i class="bi bi-cloud-check-fill me-1"></i>Save Progress</button>
-                        <button class="btn btn-sm btn-preview" onclick="openExcelPreviewModal()"><i class="bi bi-eye-fill me-1"></i>Preview Excel Sheet</button>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button class="btn btn-sm btn-msg-primary" onclick="saveWorksheetProgress(false)"><i class="bi bi-cloud-check-fill me-1"></i>Save Draft</button>
+                        <button class="btn btn-sm btn-outline-warning text-dark" onclick="saveWorksheetProgress(true)" title="Save as a separate draft (e.g. 2nd editor)"><i class="bi bi-copy me-1"></i>Save as New Draft</button>
+                        <button class="btn btn-sm btn-preview" onclick="openExcelPreviewModal()"><i class="bi bi-eye-fill me-1"></i>Preview Excel</button>
                         <button class="btn btn-sm btn-outline-dark" onclick="addRow()"><i class="bi bi-plus-lg me-1"></i>Add Row</button>
                     </div>
                 </div>
 
-                <!-- Export Filter & Packaging Quick Toolbar -->
+                <!-- Sticky Floating Selection Toolbar (Visible when rows are selected) -->
+                <div id="selectionQuickBar" class="selection-bar d-none">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-warning text-dark fs-6" id="selectedCountBadge">0 Selected</span>
+                            <span class="text-white small fw-semibold">Bulk Operations:</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <button class="btn btn-sm btn-primary fw-semibold" onclick="openSupplierPOModal()"><i class="bi bi-cart-plus-fill me-1"></i>Convert to Supplier PO</button>
+                            <button class="btn btn-sm btn-info text-dark fw-semibold" onclick="openCIPLConfigModal()"><i class="bi bi-box-seam-fill me-1"></i>Convert to CIPL</button>
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-light dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-stack me-1"></i>Set Packaging
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="bulkSetPackaging('Pallet')"><i class="bi bi-stack me-1"></i>Pallet</a></li>
+                                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="bulkSetPackaging('Box')"><i class="bi bi-box me-1"></i>Box</a></li>
+                                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="bulkSetPackaging('Crate')"><i class="bi bi-archive me-1"></i>Crate</a></li>
+                                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="bulkSetPackaging('Wooden Box')"><i class="bi bi-box2 me-1"></i>Wooden Box</a></li>
+                                </ul>
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteSelectedRows()"><i class="bi bi-trash me-1"></i>Delete Selected</button>
+                            <button class="btn btn-sm btn-outline-secondary text-white" onclick="deselectAll()"><i class="bi bi-x-circle me-1"></i>Deselect</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Export Filter Toolbar -->
                 <div class="row g-2 align-items-center mb-3">
                     <div class="col-lg-6">
                         <div class="alert alert-light border d-flex align-items-center mb-0 py-2">
@@ -408,10 +454,10 @@
                     </div>
                     <div class="col-lg-6 text-lg-end">
                         <div class="d-inline-flex gap-2 flex-wrap align-items-center bg-light p-2 rounded border">
-                            <span class="fw-bold text-dark small"><i class="bi bi-box-seam text-warning me-1"></i>CIPL Packaging:</span>
-                            <button type="button" class="btn btn-xs btn-outline-primary" onclick="setAllPackaging('Pallet')"><i class="bi bi-stack me-1"></i>Set All Pallet</button>
-                            <button type="button" class="btn btn-xs btn-outline-info text-dark" onclick="setAllPackaging('Box')"><i class="bi bi-box me-1"></i>Set All Box</button>
-                            <button type="button" class="btn btn-xs btn-outline-dark" onclick="setAllPackaging('Crate')"><i class="bi bi-archive me-1"></i>Set All Crate</button>
+                            <span class="fw-bold text-dark small"><i class="bi bi-box-seam text-warning me-1"></i>Quick Actions:</span>
+                            <button type="button" class="btn btn-xs btn-outline-primary" onclick="openSupplierPOModal()"><i class="bi bi-cart-plus me-1"></i>Supplier PO</button>
+                            <button type="button" class="btn btn-xs btn-outline-info text-dark" onclick="openCIPLConfigModal()"><i class="bi bi-file-earmark-spreadsheet me-1"></i>CIPL Builder</button>
+                            <button type="button" class="btn btn-xs btn-outline-dark" onclick="setAllPackaging('Pallet')"><i class="bi bi-stack me-1"></i>All Pallet</button>
                         </div>
                     </div>
                 </div>
@@ -420,6 +466,9 @@
                     <table class="table table-bordered table-custom align-middle" id="itemsTable">
                         <thead>
                             <tr>
+                                <th style="width: 40px;" class="text-center">
+                                    <input type="checkbox" class="form-check-input" id="selectAllCheckbox" onchange="toggleSelectAll(this)" title="Select All Items">
+                                </th>
                                 <th style="width: 55px;">SL NO</th>
                                 <th class="internal-col" style="width: 110px;">
                                     CLIENT PO ITEM NO
@@ -452,33 +501,33 @@
                 </div>
 
                 <div class="d-flex justify-content-center flex-wrap gap-3 pt-2">
-                    <button class="btn btn-msg-primary" onclick="saveWorksheetProgress()">
-                        <i class="bi bi-cloud-upload-fill me-2"></i>Save Worksheet Progress
-                        <div style="font-size: 0.75rem; font-weight: normal; opacity: 0.9;">Cloudinary Cloud Sync & Snapshot Persistence</div>
+                    <button class="btn btn-msg-primary" onclick="saveWorksheetProgress(false)">
+                        <i class="bi bi-cloud-upload-fill me-2"></i>Save Worksheet Draft
+                        <div style="font-size: 0.75rem; font-weight: normal; opacity: 0.9;">Saves Current Draft under Sales Order</div>
                     </button>
 
                     <button class="btn btn-preview" onclick="openExcelPreviewModal()">
-                        <i class="bi bi-eye-fill me-2"></i>Preview Excel Sheet Layout
+                        <i class="bi bi-eye-fill me-2"></i>Preview Excel Layout
                         <div style="font-size: 0.75rem; font-weight: normal; opacity: 0.9;">Visual Modal Preview Before Download</div>
                     </button>
 
                     <button class="btn btn-client-download" onclick="downloadExcel(false)">
-                        <i class="bi bi-file-earmark-excel me-2"></i>Download Client Summary Sheet (.xlsx)
+                        <i class="bi bi-file-earmark-excel me-2"></i>Download Client Summary (.xlsx)
                         <div style="font-size: 0.75rem; font-weight: normal; opacity: 0.9;">Clean 8 Columns (Hides Supplier Details)</div>
                     </button>
                     
                     <button class="btn btn-stores-download" onclick="downloadExcel(true)">
-                        <i class="bi bi-shield-lock me-2"></i>Download Internal Stores Sheet (.xlsx)
-                        <div style="font-size: 0.75rem; font-weight: normal; opacity: 0.9;">11 Columns (Includes Client PO Item No & Supplier Details)</div>
+                        <i class="bi bi-shield-lock me-2"></i>Download Stores Sheet (.xlsx)
+                        <div style="font-size: 0.75rem; font-weight: normal; opacity: 0.9;">11 Columns (Includes Supplier Details)</div>
                     </button>
 
-                    <button class="btn btn-cipl-download" onclick="downloadCIPL()">
+                    <button class="btn btn-cipl-download" onclick="openCIPLConfigModal()">
                         <i class="bi bi-file-earmark-spreadsheet-fill me-2"></i>Download CIPL (.xlsx)
-                        <div style="font-size: 0.75rem; font-weight: normal; opacity: 0.9;">Commercial Invoice & Packing List (Pallet/Box breakdown)</div>
+                        <div style="font-size: 0.75rem; font-weight: normal; opacity: 0.9;">Commercial Invoice & Packing List (Pallet/Box/COO/HS)</div>
                     </button>
 
                     <button class="btn btn-pdf-download" onclick="exportSupplierPDFs()">
-                        <i class="bi bi-file-earmark-pdf me-2"></i>Export Per-Supplier PDFs (.zip)
+                        <i class="bi bi-file-earmark-pdf me-2"></i>Export Supplier PDFs (.zip)
                         <div style="font-size: 0.75rem; font-weight: normal; opacity: 0.9;">Generates Separate PO PDF per Supplier</div>
                     </button>
                 </div>
@@ -486,22 +535,22 @@
 
         </div>
 
-        <!-- Worked Sheets History Section (Unlimited Storage & Search) -->
+        <!-- Worked Sheets History Section (Sales Order Dashboard) -->
         <div class="card card-custom p-4 mb-4" id="historySection">
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                 <div>
-                    <h5 class="fw-bold text-dark mb-0"><i class="bi bi-clock-history text-warning me-2"></i>Worked Sheets History</h5>
-                    <small class="text-muted">Unlimited worked sheets stored. Search by Client, PO Number, MSG Ref, or Date.</small>
+                    <h5 class="fw-bold text-dark mb-0"><i class="bi bi-grid-3x3-gap-fill text-warning me-2"></i>Sales Orders & Drafts Portal</h5>
+                    <small class="text-muted">Multi-user draft management. Grouped by Sales Order &bull; Restore drafts or download documents directly.</small>
                 </div>
                 <div>
-                    <span id="historyTotalBadge" class="badge bg-dark fs-6">0 Sheets Saved</span>
+                    <span id="historyTotalBadge" class="badge bg-dark fs-6">0 Orders Saved</span>
                 </div>
             </div>
 
             <!-- Live Search Bar -->
             <div class="input-group mb-3">
                 <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-                <input type="text" id="historySearchInput" class="form-control border-start-0" placeholder="Search worked sheets by Client Name, PO Number, MSG Ref, Date, or Item Description..." onkeyup="filterHistory(this.value)">
+                <input type="text" id="historySearchInput" class="form-control border-start-0" placeholder="Search orders by SO Ref, Client, PO Number, Editor Name, or Item Description..." onkeyup="filterHistory(this.value)">
                 <button class="btn btn-outline-secondary" type="button" onclick="clearHistorySearch()"><i class="bi bi-x-circle me-1"></i>Clear</button>
             </div>
 
@@ -517,7 +566,98 @@
 
     </div>
 
-    <!-- Cloudinary Config Modal -->
+    <!-- Supplier PO Conversion Modal -->
+    <div class="modal fade" id="supplierPOModal" tabindex="-1" aria-labelledby="supplierPOModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold" id="supplierPOModalLabel"><i class="bi bi-cart-check text-warning me-2"></i>Convert to Supplier Purchase Order</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 bg-light">
+                    <div class="alert alert-info py-2 small mb-3">
+                        <i class="bi bi-info-circle me-1"></i> Assigning supplier to <strong id="poSelectedCount">0</strong> selected items. This automatically updates <strong>Supplier Name</strong> and <strong>Supplier PO #</strong> on the main worksheet.
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Supplier Name</label>
+                            <input type="text" id="modalSupplierName" class="form-control" list="suppliersList" placeholder="Select or type Supplier name...">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Supplier PO Number</label>
+                            <input type="text" id="modalSupplierPO" class="form-control" placeholder="e.g. PO-2026-089">
+                        </div>
+                    </div>
+                    <div class="table-responsive" style="max-height: 250px;">
+                        <table class="table table-sm table-bordered bg-white align-middle" id="poItemsPreviewTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th style="width: 45px;" class="text-center">#</th>
+                                    <th>Item Description</th>
+                                    <th style="width: 80px;" class="text-center">Qty</th>
+                                    <th style="width: 70px;" class="text-center">UOM</th>
+                                    <th style="width: 130px;">Current Supplier</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer bg-white">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary fw-bold" onclick="applySupplierPO()"><i class="bi bi-check-circle-fill me-1"></i>Apply Supplier & PO to Selected Items</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CIPL Configuration & Conversion Modal -->
+    <div class="modal fade" id="ciplConfigModal" tabindex="-1" aria-labelledby="ciplConfigModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold" id="ciplConfigModalLabel"><i class="bi bi-file-earmark-spreadsheet-fill text-info me-2"></i>Commercial Invoice & Packing List (CIPL) Builder</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 bg-light">
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                        <p class="text-muted small mb-0"><i class="bi bi-info-circle me-1"></i> Review Pallet/Box packaging, prices, auto-detected <strong>Country of Origin (COO)</strong>, and <strong>HS Codes</strong>.</p>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-xs btn-outline-primary" onclick="setAllModalPackaging('Pallet')"><i class="bi bi-stack me-1"></i>All Pallet</button>
+                            <button type="button" class="btn btn-xs btn-outline-info text-dark" onclick="setAllModalPackaging('Box')"><i class="bi bi-box me-1"></i>All Box</button>
+                            <button type="button" class="btn btn-xs btn-outline-dark" onclick="setAllModalPackaging('Crate')"><i class="bi bi-archive me-1"></i>All Crate</button>
+                        </div>
+                    </div>
+                    <div class="table-responsive" style="max-height: 380px;">
+                        <table class="table table-sm table-bordered bg-white align-middle" id="ciplItemsModalTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th style="width: 45px;" class="text-center">#</th>
+                                    <th>Description</th>
+                                    <th style="width: 85px;" class="text-center">Qty</th>
+                                    <th style="width: 145px;" class="text-center">Packaging</th>
+                                    <th style="width: 95px;" class="text-end">Unit Rate</th>
+                                    <th style="width: 105px;" class="text-end">Amount</th>
+                                    <th style="width: 130px;" class="text-center">HS Code</th>
+                                    <th style="width: 140px;" class="text-center">Country of Origin</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer bg-white d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="fw-bold text-dark me-2">Total Value: <span id="ciplModalTotalAmt" class="text-success fs-6">$0.00</span></span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary fw-bold" onclick="applyCIPLAndDownload()"><i class="bi bi-download me-1"></i>Apply & Download CIPL (.xlsx)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="modal fade" id="cloudinaryModal" tabindex="-1" aria-labelledby="cloudinaryModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -784,6 +924,7 @@
             items.forEach((item, index) => {
                 addRow(item, index + 1);
             });
+            updateSelectionBar();
         }
 
         function addRow(item = {}, slNo = null) {
@@ -807,8 +948,13 @@
             const groupId = item.group_id || ('grp-' + clientPoItVal);
             tr.setAttribute('data-group-id', groupId);
             tr.setAttribute('data-total-qty', totalQty);
+            tr.setAttribute('data-hs-code', item.hs_code || '7307.93.00');
+            tr.setAttribute('data-coo', item.country_of_origin || (item.make && item.make.includes('FRANCE') ? 'France' : (item.make && item.make.includes('ITALY') ? 'Italy' : 'France')));
 
             tr.innerHTML = `
+                <td class="text-center">
+                    <input type="checkbox" class="form-check-input item-select-check" onchange="updateSelectionBar()">
+                </td>
                 <td class="text-center fw-semibold row-sl-no">${currentSlNo}</td>
                 <td class="internal-col text-center">
                     <input type="text" class="form-control form-control-sm text-center item-client-po-item-no" value="${escapeHtml(clientPoItVal)}" placeholder="1" onchange="onClientPoItemNoChange(this)">
@@ -868,6 +1014,223 @@
             `;
             itemsTableBody.appendChild(tr);
             reindexRows();
+        }
+
+        // --- Multi-Select & Selection Quick Bar ---
+        function toggleSelectAll(masterCheckbox) {
+            const checks = itemsTableBody.querySelectorAll('.item-select-check');
+            checks.forEach(cb => cb.checked = masterCheckbox.checked);
+            updateSelectionBar();
+        }
+
+        function deselectAll() {
+            document.getElementById('selectAllCheckbox').checked = false;
+            const checks = itemsTableBody.querySelectorAll('.item-select-check');
+            checks.forEach(cb => cb.checked = false);
+            updateSelectionBar();
+        }
+
+        function getSelectedRows() {
+            const rows = [];
+            itemsTableBody.querySelectorAll('tr').forEach(tr => {
+                const cb = tr.querySelector('.item-select-check');
+                if (cb && cb.checked) rows.push(tr);
+            });
+            return rows;
+        }
+
+        function updateSelectionBar() {
+            const selectedRows = getSelectedRows();
+            const totalRows = itemsTableBody.rows.length;
+            const count = selectedRows.length;
+
+            const bar = document.getElementById('selectionQuickBar');
+            const badge = document.getElementById('selectedCountBadge');
+            const masterCheck = document.getElementById('selectAllCheckbox');
+
+            badge.innerText = `${count} Selected`;
+
+            if (count > 0) {
+                bar.classList.remove('d-none');
+            } else {
+                bar.classList.add('d-none');
+            }
+
+            if (masterCheck) {
+                masterCheck.checked = (count === totalRows && totalRows > 0);
+            }
+
+            // Toggle active row styling
+            itemsTableBody.querySelectorAll('tr').forEach(tr => {
+                const cb = tr.querySelector('.item-select-check');
+                if (cb && cb.checked) {
+                    tr.classList.add('table-warning');
+                } else {
+                    tr.classList.remove('table-warning');
+                }
+            });
+        }
+
+        function bulkSetPackaging(pkgType) {
+            const selectedRows = getSelectedRows();
+            const targets = selectedRows.length > 0 ? selectedRows : Array.from(itemsTableBody.querySelectorAll('tr'));
+            targets.forEach(row => {
+                const select = row.querySelector('.item-pkg-type');
+                if (select) select.value = pkgType;
+            });
+            alert(`Updated packaging to "${pkgType}" for ${targets.length} item(s).`);
+        }
+
+        function deleteSelectedRows() {
+            const selectedRows = getSelectedRows();
+            if (selectedRows.length === 0) {
+                alert('Please select at least one item using the checkboxes.');
+                return;
+            }
+            if (!confirm(`Are you sure you want to delete ${selectedRows.length} selected row(s)?`)) return;
+
+            selectedRows.forEach(r => r.remove());
+            reindexRows();
+            updateSelectionBar();
+        }
+
+        // --- Supplier PO Conversion Modal ---
+        function openSupplierPOModal() {
+            const selectedRows = getSelectedRows();
+            const targets = selectedRows.length > 0 ? selectedRows : Array.from(itemsTableBody.querySelectorAll('tr'));
+
+            document.getElementById('poSelectedCount').innerText = targets.length;
+            const tbody = document.querySelector('#poItemsPreviewTable tbody');
+            tbody.innerHTML = '';
+
+            targets.forEach((r, idx) => {
+                const sl = r.querySelector('.row-sl-no').innerText;
+                const desc = r.querySelector('.item-desc').value;
+                const qty = r.querySelector('.item-qty').value;
+                const uom = r.querySelector('.item-uom').value;
+                const currSupp = r.querySelector('.item-supplier-name').value;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="text-center">${sl}</td>
+                    <td style="font-size:0.85rem;">${escapeHtml(desc)}</td>
+                    <td class="text-center font-monospace">${escapeHtml(qty)}</td>
+                    <td class="text-center">${escapeHtml(uom)}</td>
+                    <td><small class="text-muted">${escapeHtml(currSupp || 'None')}</small></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            const modal = new bootstrap.Modal(document.getElementById('supplierPOModal'));
+            modal.show();
+        }
+
+        function applySupplierPO() {
+            const supplierName = document.getElementById('modalSupplierName').value.trim();
+            const supplierPO = document.getElementById('modalSupplierPO').value.trim();
+
+            if (!supplierName && !supplierPO) {
+                alert('Please enter at least a Supplier Name or Supplier PO Number.');
+                return;
+            }
+
+            const selectedRows = getSelectedRows();
+            const targets = selectedRows.length > 0 ? selectedRows : Array.from(itemsTableBody.querySelectorAll('tr'));
+
+            targets.forEach(r => {
+                if (supplierName) r.querySelector('.item-supplier-name').value = supplierName;
+                if (supplierPO) r.querySelector('.item-supplier-po').value = supplierPO;
+            });
+
+            bootstrap.Modal.getInstance(document.getElementById('supplierPOModal')).hide();
+            alert(`Applied Supplier "${supplierName || '-'}" and PO #${supplierPO || '-'} to ${targets.length} item(s)!`);
+        }
+
+        // --- CIPL Builder Modal ---
+        function openCIPLConfigModal() {
+            const selectedRows = getSelectedRows();
+            const targets = selectedRows.length > 0 ? selectedRows : Array.from(itemsTableBody.querySelectorAll('tr'));
+
+            const tbody = document.querySelector('#ciplItemsModalTable tbody');
+            tbody.innerHTML = '';
+            let totalAmount = 0;
+
+            targets.forEach((r, idx) => {
+                const sl = r.querySelector('.row-sl-no').innerText;
+                const desc = r.querySelector('.item-desc').value;
+                const qty = r.querySelector('.item-qty').value;
+                const uom = r.querySelector('.item-uom').value;
+                const pkgType = r.querySelector('.item-pkg-type').value;
+                const pkgNo = r.querySelector('.item-pkg-no').value;
+                const rate = r.querySelector('.item-rate').value;
+                const amt = r.querySelector('.item-amount').value;
+                const hs = r.getAttribute('data-hs-code') || '7307.93.00';
+                const coo = r.getAttribute('data-coo') || 'France';
+
+                totalAmount += parseFloat(amt.replace(/,/g, '')) || 0;
+
+                const tr = document.createElement('tr');
+                tr.setAttribute('data-target-row-id', r.querySelector('.row-sl-no').innerText);
+                tr.innerHTML = `
+                    <td class="text-center">${sl}</td>
+                    <td style="font-size:0.85rem;"><div style="max-height:48px; overflow-y:auto;">${escapeHtml(desc)}</div></td>
+                    <td class="text-center font-monospace">${escapeHtml(qty)} ${escapeHtml(uom)}</td>
+                    <td>
+                        <div class="input-group input-group-sm">
+                            <select class="form-select form-select-sm modal-cipl-pkg-type" style="font-size:0.8rem;">
+                                <option value="Pallet" ${pkgType === 'Pallet' ? 'selected' : ''}>Pallet</option>
+                                <option value="Box" ${pkgType === 'Box' ? 'selected' : ''}>Box</option>
+                                <option value="Crate" ${pkgType === 'Crate' ? 'selected' : ''}>Crate</option>
+                                <option value="Wooden Box" ${pkgType === 'Wooden Box' ? 'selected' : ''}>W.Box</option>
+                            </select>
+                            <input type="text" class="form-control form-control-sm text-center modal-cipl-pkg-no" value="${escapeHtml(pkgNo)}" style="max-width:40px; font-size:0.8rem;">
+                        </div>
+                    </td>
+                    <td class="text-end font-monospace">${escapeHtml(rate)}</td>
+                    <td class="text-end fw-semibold font-monospace">${escapeHtml(amt)}</td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm text-center modal-cipl-hs" value="${escapeHtml(hs)}" placeholder="7307.93.00">
+                    </td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm text-center modal-cipl-coo" value="${escapeHtml(coo)}" placeholder="Country of Origin">
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('ciplModalTotalAmt').innerText = `$${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+            const modal = new bootstrap.Modal(document.getElementById('ciplConfigModal'));
+            modal.show();
+        }
+
+        function setAllModalPackaging(pkgType) {
+            document.querySelectorAll('#ciplItemsModalTable .modal-cipl-pkg-type').forEach(sel => sel.value = pkgType);
+        }
+
+        function applyCIPLAndDownload() {
+            const modalRows = document.querySelectorAll('#ciplItemsModalTable tbody tr');
+            const mainRows = itemsTableBody.querySelectorAll('tr');
+
+            modalRows.forEach(mr => {
+                const targetSl = mr.getAttribute('data-target-row-id');
+                const pkgType = mr.querySelector('.modal-cipl-pkg-type').value;
+                const pkgNo = mr.querySelector('.modal-cipl-pkg-no').value;
+                const hs = mr.querySelector('.modal-cipl-hs').value.trim();
+                const coo = mr.querySelector('.modal-cipl-coo').value.trim();
+
+                mainRows.forEach(mrMain => {
+                    if (mrMain.querySelector('.row-sl-no').innerText === targetSl) {
+                        mrMain.querySelector('.item-pkg-type').value = pkgType;
+                        mrMain.querySelector('.item-pkg-no').value = pkgNo;
+                        mrMain.setAttribute('data-hs-code', hs);
+                        mrMain.setAttribute('data-coo', coo);
+                    }
+                });
+            });
+
+            bootstrap.Modal.getInstance(document.getElementById('ciplConfigModal')).hide();
+            downloadCIPL();
         }
 
         function onClientPoItemNoChange(input) {
@@ -999,6 +1362,8 @@
             const remarks = currentRow.querySelector('.item-remarks').value;
             const supplier = currentRow.querySelector('.item-supplier-name').value;
             const supplierPo = currentRow.querySelector('.item-supplier-po').value;
+            const hs = currentRow.getAttribute('data-hs-code') || '7307.93.00';
+            const coo = currentRow.getAttribute('data-coo') || 'France';
 
             let groupId = currentRow.getAttribute('data-group-id');
             if (!groupId) {
@@ -1065,8 +1430,13 @@
             const newTr = document.createElement('tr');
             newTr.setAttribute('data-group-id', groupId);
             newTr.setAttribute('data-total-qty', totalQty);
+            newTr.setAttribute('data-hs-code', hs);
+            newTr.setAttribute('data-coo', coo);
 
             newTr.innerHTML = `
+                <td class="text-center">
+                    <input type="checkbox" class="form-check-input item-select-check" onchange="updateSelectionBar()">
+                </td>
                 <td class="text-center fw-semibold row-sl-no">${slNo}</td>
                 <td class="internal-col text-center">
                     <input type="text" class="form-control form-control-sm text-center item-client-po-item-no" value="${escapeHtml(clientPoIt)}">
@@ -1125,6 +1495,7 @@
                 </td>
             `;
             currentRow.parentNode.insertBefore(newTr, currentRow.nextSibling);
+            updateSelectionBar();
         }
 
         function deleteRow(btn) {
@@ -1132,6 +1503,7 @@
             if (itemsTableBody.rows.length > 1) {
                 tr.remove();
                 reindexRows();
+                updateSelectionBar();
             } else {
                 alert('Cannot delete the only row.');
             }
@@ -1164,7 +1536,9 @@
                     make: row.querySelector('.item-make')?.value.trim() || '',
                     remarks: row.querySelector('.item-remarks')?.value.trim() || '',
                     supplier_name: row.querySelector('.item-supplier-name')?.value.trim() || '',
-                    supplier_po: row.querySelector('.item-supplier-po')?.value.trim() || ''
+                    supplier_po: row.querySelector('.item-supplier-po')?.value.trim() || '',
+                    hs_code: row.getAttribute('data-hs-code') || '7307.93.00',
+                    country_of_origin: row.getAttribute('data-coo') || 'France'
                 });
             });
 
@@ -1173,6 +1547,7 @@
                 po_number: document.getElementById('poInput').value.trim(),
                 msg_ref: document.getElementById('msgRefInput').value.trim(),
                 filter_machined_only: document.getElementById('filterMachinedCheck').checked,
+                editor_username: document.getElementById('currentUsernameBadge')?.innerText.trim() || 'Admin',
                 items: items
             };
 
@@ -1190,8 +1565,13 @@
             return MANUFACTURING_KEYWORDS.some(kw => new RegExp('\\b' + kw, 'i').test(lower));
         }
 
-        function saveWorksheetProgress() {
+        function saveWorksheetProgress(saveAsNewDraft = false) {
             const payload = buildPayload();
+            if (saveAsNewDraft) {
+                payload.save_as_new_draft = true;
+                delete payload.id; // generate new unique draft ID
+            }
+
             fetch('/api/save-worksheet', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1202,7 +1582,7 @@
                 if (data.success && data.record) {
                     currentSheetSnapshotId = data.record.id;
                     fetchHistory();
-                    alert('Worksheet progress saved successfully!');
+                    alert(saveAsNewDraft ? 'Created and saved as a NEW separate draft successfully!' : 'Worksheet draft saved successfully!');
                 } else {
                     alert('Error saving worksheet progress: ' + (data.error || 'Unknown error'));
                 }
@@ -1210,7 +1590,7 @@
             .catch(err => alert('Save failed: ' + err.message));
         }
 
-        // --- History System ---
+        // --- Sales Orders & Multi-Draft History Portal ---
         function fetchHistory(query = '') {
             fetch(`/api/history?q=${encodeURIComponent(query)}`)
                 .then(res => res.json())
@@ -1233,46 +1613,90 @@
 
         function renderHistoryGrid(sheets) {
             const container = document.getElementById('historyListContainer');
-            document.getElementById('historyTotalBadge').innerText = `${sheets.length} Sheet(s) Stored`;
+            
+            // Group drafts by Sales Order Key (msg_ref + po_number)
+            const orderGroups = {};
+            sheets.forEach(s => {
+                const soKey = (s.msg_ref || s.po_number || 'UNASSIGNED_SO').trim().toUpperCase();
+                if (!orderGroups[soKey]) {
+                    orderGroups[soKey] = {
+                        msg_ref: s.msg_ref,
+                        po_number: s.po_number,
+                        client: s.client,
+                        drafts: []
+                    };
+                }
+                orderGroups[soKey].drafts.push(s);
+            });
 
-            if (sheets.length === 0) {
+            const groupKeys = Object.keys(orderGroups);
+            document.getElementById('historyTotalBadge').innerText = `${groupKeys.length} Order(s) | ${sheets.length} Draft(s)`;
+
+            if (groupKeys.length === 0) {
                 container.innerHTML = `
                     <div class="col-12 text-center py-4 text-muted">
                         <i class="bi bi-inbox fs-1 d-block mb-2 text-warning"></i>
-                        No worked sheets found matching your search.
+                        No worked orders found matching your search.
                     </div>
                 `;
                 return;
             }
 
             let html = '';
-            sheets.forEach(s => {
-                const urls = s.file_urls || {};
+            groupKeys.forEach(key => {
+                const order = orderGroups[key];
+                const latestDraft = order.drafts[0];
+                const urls = latestDraft.file_urls || {};
+
                 html += `
-                <div class="col-md-6 col-lg-4">
-                    <div class="card card-custom p-3 history-card h-100">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
+                <div class="col-lg-6 mb-3">
+                    <div class="card card-custom p-3 history-card h-100 shadow-sm border">
+                        <div class="d-flex justify-content-between align-items-start mb-2 border-bottom pb-2">
                             <div>
-                                <h6 class="fw-bold text-dark mb-0">${escapeHtml(s.client || 'Client Name')}</h6>
-                                <small class="text-muted">PO: <strong>${escapeHtml(s.po_number || 'N/A')}</strong> &bull; MSG: <strong>${escapeHtml(s.msg_ref || 'N/A')}</strong></small>
+                                <span class="badge bg-dark fs-7 mb-1"><i class="bi bi-file-earmark-text me-1 text-warning"></i>SO: ${escapeHtml(order.msg_ref || 'N/A')}</span>
+                                <h6 class="fw-bold text-dark mb-0">${escapeHtml(order.client || 'Client Name')}</h6>
+                                <small class="text-muted">PO: <strong>${escapeHtml(order.po_number || 'N/A')}</strong></small>
                             </div>
-                            <span class="badge bg-warning text-dark fs-7">${s.item_count || 0} items</span>
+                            <div class="text-end">
+                                <span class="badge bg-warning text-dark fs-7">${order.drafts.length} Draft(s)</span>
+                                <div class="text-muted small mt-1"><i class="bi bi-calendar3 me-1"></i>${escapeHtml(latestDraft.formatted_date || '')}</div>
+                            </div>
                         </div>
-                        <p class="text-muted small mb-2"><i class="bi bi-calendar3 me-1"></i>${escapeHtml(s.formatted_date || '')}</p>
-                        
-                        <div class="d-flex flex-wrap gap-1 mb-3">
-                            ${urls.client_excel_url ? `<a href="${urls.client_excel_url}" target="_blank" class="btn btn-xs btn-outline-success"><i class="bi bi-cloud-download me-1"></i>Client Excel</a>` : ''}
-                            ${urls.stores_excel_url ? `<a href="${urls.stores_excel_url}" target="_blank" class="btn btn-xs btn-outline-dark"><i class="bi bi-cloud-download me-1"></i>Stores Excel</a>` : ''}
-                            ${urls.cipl_excel_url ? `<a href="${urls.cipl_excel_url}" target="_blank" class="btn btn-xs btn-outline-primary"><i class="bi bi-cloud-download me-1"></i>CIPL Excel</a>` : ''}
-                            ${urls.supplier_pdf_zip_url ? `<a href="${urls.supplier_pdf_zip_url}" target="_blank" class="btn btn-xs btn-outline-danger"><i class="bi bi-file-zip me-1"></i>PDFs ZIP</a>` : ''}
+
+                        <!-- Draft Versions Accordion / List -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-dark small mb-1"><i class="bi bi-people me-1"></i>Draft Versions & Editors:</label>
+                            <div class="list-group list-group-flush border rounded" style="max-height: 140px; overflow-y: auto;">
+                                ${order.drafts.map((d, dIdx) => `
+                                    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-1 px-2 ${d.id === currentSheetSnapshotId ? 'bg-warning bg-opacity-10 border-start border-warning border-3' : ''}">
+                                        <div>
+                                            <span class="badge bg-secondary text-white" style="font-size:0.7rem;"><i class="bi bi-person me-1"></i>${escapeHtml(d.editor_username || 'Admin')}</span>
+                                            <span class="small text-muted ms-1">${escapeHtml(d.formatted_date || '')}</span>
+                                            <span class="badge bg-light text-dark border ms-1" style="font-size:0.68rem;">${d.item_count || 0} items</span>
+                                        </div>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-xs btn-outline-primary py-0 px-1" onclick="restoreWorksheet('${d.id}')" title="Restore this draft state"><i class="bi bi-arrow-counterclockwise"></i> Open</button>
+                                            <button class="btn btn-xs btn-outline-danger py-0 px-1" onclick="deleteHistoryItem('${d.id}')" title="Delete draft"><i class="bi bi-trash"></i></button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Document Export Shortcuts -->
+                        <div class="d-flex flex-wrap gap-1 mb-2 pt-1">
+                            ${urls.client_excel_url ? `<a href="${urls.client_excel_url}" target="_blank" class="btn btn-xs btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i>Client Summary</a>` : ''}
+                            ${urls.stores_excel_url ? `<a href="${urls.stores_excel_url}" target="_blank" class="btn btn-xs btn-outline-dark"><i class="bi bi-shield-lock me-1"></i>Stores Sheet</a>` : ''}
+                            ${urls.cipl_excel_url ? `<a href="${urls.cipl_excel_url}" target="_blank" class="btn btn-xs btn-outline-primary"><i class="bi bi-file-earmark-spreadsheet me-1"></i>CIPL Doc</a>` : ''}
+                            ${urls.supplier_pdf_zip_url ? `<a href="${urls.supplier_pdf_zip_url}" target="_blank" class="btn btn-xs btn-outline-danger"><i class="bi bi-file-zip me-1"></i>Supplier POs</a>` : ''}
                         </div>
 
                         <div class="d-flex justify-content-between align-items-center mt-auto pt-2 border-top">
-                            <button class="btn btn-sm btn-msg-primary" onclick="restoreWorksheet('${s.id}')">
-                                <i class="bi bi-arrow-counterclockwise me-1"></i>Restore State
+                            <button class="btn btn-sm btn-msg-primary" onclick="restoreWorksheet('${latestDraft.id}')">
+                                <i class="bi bi-pencil-square me-1"></i>Edit Latest Draft
                             </button>
-                            <button class="btn btn-sm btn-outline-danger border-0" onclick="deleteHistoryItem('${s.id}')" title="Delete record">
-                                <i class="bi bi-trash"></i>
+                            <button class="btn btn-sm btn-outline-info text-dark" onclick="openExcelPreviewModal()">
+                                <i class="bi bi-eye me-1"></i>Preview
                             </button>
                         </div>
                     </div>
@@ -1297,7 +1721,7 @@
         }
 
         function deleteHistoryItem(sheetId) {
-            if (!confirm('Are you sure you want to delete this historical sheet record?')) return;
+            if (!confirm('Are you sure you want to delete this draft record?')) return;
             fetch(`/api/history/${sheetId}`, { method: 'DELETE' })
                 .then(res => res.json())
                 .then(data => {
