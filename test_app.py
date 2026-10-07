@@ -202,15 +202,15 @@ class SummaryAppTestCase(unittest.TestCase):
         
         excel_bytes = io.BytesIO(res.data)
         wb = openpyxl.load_workbook(excel_bytes)
-        self.assertIn('COMMERCIAL INVOICE', wb.sheetnames)
+        self.assertIn('INVOICE', wb.sheetnames)
         self.assertIn('PACKING LIST', wb.sheetnames)
         
-        ws_inv = wb['COMMERCIAL INVOICE']
+        ws_inv = wb['INVOICE']
         self.assertEqual(ws_inv['A1'].value, "MSG OILFIELD EQUIPMENT TRADING LLC")
-        self.assertEqual(ws_inv['A3'].value, "COMMERCIAL INVOICE")
+        self.assertEqual(ws_inv['A6'].value, "INVOICE")
 
         ws_pk = wb['PACKING LIST']
-        self.assertEqual(ws_pk['A3'].value, "COMMERCIAL PACKING LIST")
+        self.assertEqual(ws_pk['A6'].value, "PACKING LIST")
 
     def test_pdf_table_parsing_multipage(self):
         import os
