@@ -631,7 +631,7 @@
                 </div>
                 <div class="modal-body p-4 bg-light">
                     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                        <p class="text-muted small mb-0"><i class="bi bi-info-circle me-1"></i> Review Pallet/Box packaging, prices, auto-detected <strong>Country of Origin (COO)</strong>, and <strong>HS Codes</strong>.</p>
+                        <p class="text-muted small mb-0"><i class="bi bi-info-circle me-1"></i> Edit Pallet/Box packaging, <strong>Unit Weight (KG)</strong>, <strong>Dimensions (CM)</strong>, prices, <strong>HS Codes</strong>, and <strong>Country of Origin</strong>.</p>
                         <div class="d-flex align-items-center gap-2 flex-wrap">
                             <div class="d-flex align-items-center gap-1">
                                 <label class="form-label fw-semibold small mb-0 text-nowrap"><i class="bi bi-currency-exchange me-1"></i>Currency:</label>
@@ -650,18 +650,21 @@
                             </div>
                         </div>
                     </div>
-                    <div class="table-responsive" style="max-height: 380px;">
+                    <div class="table-responsive" style="max-height: 420px;">
                         <table class="table table-sm table-bordered bg-white align-middle" id="ciplItemsModalTable">
                             <thead class="table-dark">
                                 <tr>
-                                    <th style="width: 45px;" class="text-center">#</th>
+                                    <th style="width: 40px;" class="text-center">#</th>
                                     <th>Description</th>
-                                    <th style="width: 85px;" class="text-center">Qty</th>
-                                    <th style="width: 145px;" class="text-center">Packaging</th>
-                                    <th style="width: 95px;" class="text-end">Unit Rate</th>
-                                    <th style="width: 105px;" class="text-end">Amount</th>
-                                    <th style="width: 130px;" class="text-center">HS Code</th>
-                                    <th style="width: 140px;" class="text-center">Country of Origin</th>
+                                    <th style="width: 75px;" class="text-center">Qty</th>
+                                    <th style="width: 135px;" class="text-center">Packaging</th>
+                                    <th style="width: 85px;" class="text-end">Unit Rate</th>
+                                    <th style="width: 90px;" class="text-end">Amount</th>
+                                    <th style="width: 85px;" class="text-center">Unit Wt (KG)</th>
+                                    <th style="width: 85px;" class="text-center">Total Wt (KG)</th>
+                                    <th style="width: 125px;" class="text-center">Dimensions (CM)</th>
+                                    <th style="width: 110px;" class="text-center">HS Code</th>
+                                    <th style="width: 115px;" class="text-center">Origin</th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -669,8 +672,10 @@
                     </div>
                 </div>
                 <div class="modal-footer bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <div>
-                        <span class="fw-bold text-dark me-2">Total Value: <span id="ciplModalTotalAmt" class="text-success fs-6 fw-bold">USD 0.00</span></span>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="fw-bold text-dark">Total Value: <span id="ciplModalTotalAmt" class="text-success fs-6 fw-bold">USD 0.00</span></span>
+                        <span class="text-muted">|</span>
+                        <span class="fw-bold text-dark">Total Net Weight: <span id="ciplModalTotalNetWt" class="text-primary fs-6 fw-bold">0.00 KGS</span></span>
                     </div>
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -1239,6 +1244,21 @@
             alert(`Applied Supplier "${supplierName || '-'}" and PO #${supplierPO || '-'} to ${targets.length} item(s)!`);
         }
 
+        function autoEstimateUnitWeightJs(descText = '', uom = 'EA') {
+            const d = String(descText).toUpperCase();
+            if (/\b(DN\s*50|2"|2\s*INCH)\b/.test(d)) return /#3000/.test(d) ? '0.75' : '1.10';
+            if (/\b(DN\s*25|1"|1\s*INCH)\b/.test(d)) return /#3000/.test(d) ? '0.35' : '0.50';
+            if (/\b(DN\s*20|3\/4")\b/.test(d)) return /#3000/.test(d) ? '0.20' : '0.25';
+            if (/\b(DN\s*15|1\/2")\b/.test(d)) return /#3000/.test(d) ? '0.10' : '0.15';
+            if (/\b(DN\s*10|3\/8")\b/.test(d)) return /#3000/.test(d) ? '0.05' : '0.08';
+            if (/FLANGE/.test(d)) return '4.50';
+            if (/VALVE/.test(d)) return '3.50';
+            if (/TEE/.test(d)) return '0.80';
+            if (/ELBOW/.test(d)) return '0.60';
+            if (/PLUG|NIPPLE/.test(d)) return '0.15';
+            return '0.50';
+        }
+
         // --- CIPL Builder Modal ---
         function openCIPLConfigModal() {
             const selectedRows = getSelectedRows();
@@ -1247,6 +1267,7 @@
             const tbody = document.querySelector('#ciplItemsModalTable tbody');
             tbody.innerHTML = '';
             let totalAmount = 0;
+            let totalNetWt = 0;
 
             const curr = document.getElementById('currencyInput')?.value || 'USD';
             if (document.getElementById('modalCiplCurrency')) {
@@ -1258,12 +1279,24 @@
                 const desc = r.querySelector('.item-desc').value;
                 const make = r.querySelector('.item-make')?.value || '';
                 const remarks = r.querySelector('.item-remarks')?.value || '';
-                const qty = r.querySelector('.item-qty').value;
+                const rawQty = r.querySelector('.item-qty').value;
                 const uom = r.querySelector('.item-uom').value;
                 const pkgType = r.querySelector('.item-pkg-type').value;
                 const pkgNo = r.querySelector('.item-pkg-no').value;
                 const rate = r.querySelector('.item-rate').value;
                 const amt = r.querySelector('.item-amount').value;
+                
+                const qtyNum = extractQtyNumber(rawQty);
+
+                // Weight & Dimensions
+                const customUnitWt = r.getAttribute('data-unit-weight');
+                const unitWt = customUnitWt || autoEstimateUnitWeightJs(desc, uom);
+                
+                const customTotWt = r.getAttribute('data-total-weight');
+                const totWt = customTotWt || (qtyNum * parseFloat(unitWt)).toFixed(2);
+                
+                const customDims = r.getAttribute('data-dimensions');
+                const dims = customDims || (pkgNo === '1' ? '25 X 20 X 10 CM' : '35 X 20 X 15 CM');
 
                 // Dynamically detect Country of Origin from live make, desc & remarks
                 const customCoo = r.getAttribute('data-coo-custom');
@@ -1274,13 +1307,15 @@
                 const hs = customHs || autoDetectHsJs(desc) || r.getAttribute('data-hs-code') || '7307.93.00';
 
                 totalAmount += parseFloat(amt.replace(/,/g, '')) || 0;
+                totalNetWt += parseFloat(totWt) || 0;
 
                 const tr = document.createElement('tr');
                 tr.setAttribute('data-target-row-id', sl);
+                tr.setAttribute('data-qty-num', qtyNum);
                 tr.innerHTML = `
                     <td class="text-center">${sl}</td>
-                    <td style="font-size:0.85rem;"><div style="max-height:48px; overflow-y:auto;">${escapeHtml(desc)}</div></td>
-                    <td class="text-center font-monospace">${escapeHtml(qty)} ${escapeHtml(uom)}</td>
+                    <td style="font-size:0.83rem;"><div style="max-height:48px; overflow-y:auto;">${escapeHtml(desc)}</div></td>
+                    <td class="text-center font-monospace">${escapeHtml(rawQty)} ${escapeHtml(uom)}</td>
                     <td>
                         <div class="input-group input-group-sm">
                             <select class="form-select form-select-sm modal-cipl-pkg-type" style="font-size:0.8rem;">
@@ -1289,11 +1324,24 @@
                                 <option value="Crate" ${pkgType === 'Crate' ? 'selected' : ''}>Crate</option>
                                 <option value="Wooden Box" ${pkgType === 'Wooden Box' ? 'selected' : ''}>W.Box</option>
                             </select>
-                            <input type="text" class="form-control form-control-sm text-center modal-cipl-pkg-no" value="${escapeHtml(pkgNo)}" style="max-width:40px; font-size:0.8rem;">
+                            <input type="text" class="form-control form-control-sm text-center modal-cipl-pkg-no" value="${escapeHtml(pkgNo)}" style="max-width:38px; font-size:0.8rem;">
                         </div>
                     </td>
-                    <td class="text-end font-monospace">${escapeHtml(rate)}</td>
-                    <td class="text-end fw-semibold font-monospace">${escapeHtml(amt)}</td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm text-end modal-cipl-rate font-monospace" value="${escapeHtml(rate)}" placeholder="0.00" oninput="calculateModalRowAmount(this)">
+                    </td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm text-end fw-semibold modal-cipl-amt font-monospace" value="${escapeHtml(amt)}" placeholder="0.00" oninput="updateModalTotals()">
+                    </td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm text-end modal-cipl-unit-wt font-monospace" value="${escapeHtml(unitWt)}" placeholder="0.00" oninput="calculateModalRowWeight(this)">
+                    </td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm text-end modal-cipl-tot-wt font-monospace fw-semibold" value="${escapeHtml(totWt)}" placeholder="0.00" oninput="updateModalTotals()">
+                    </td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm text-center modal-cipl-dims" value="${escapeHtml(dims)}" placeholder="L x W x H CM">
+                    </td>
                     <td>
                         <input type="text" class="form-control form-control-sm text-center modal-cipl-hs" value="${escapeHtml(hs)}" placeholder="7307.93.00">
                     </td>
@@ -1304,27 +1352,62 @@
                 tbody.appendChild(tr);
             });
 
-            updateModalTotalDisplay(totalAmount, curr);
+            updateModalTotalDisplay(totalAmount, totalNetWt, curr);
 
             const modal = new bootstrap.Modal(document.getElementById('ciplConfigModal'));
             modal.show();
+        }
+
+        function calculateModalRowWeight(input) {
+            const tr = input.closest('tr');
+            if (!tr) return;
+            const qty = parseFloat(tr.getAttribute('data-qty-num')) || 1;
+            const unitWt = parseFloat(input.value.replace(/,/g, '')) || 0;
+            const totWtInput = tr.querySelector('.modal-cipl-tot-wt');
+            if (totWtInput) {
+                totWtInput.value = (qty * unitWt).toFixed(2);
+            }
+            updateModalTotals();
+        }
+
+        function calculateModalRowAmount(input) {
+            const tr = input.closest('tr');
+            if (!tr) return;
+            const qty = parseFloat(tr.getAttribute('data-qty-num')) || 1;
+            const rate = parseFloat(input.value.replace(/,/g, '')) || 0;
+            const amtInput = tr.querySelector('.modal-cipl-amt');
+            if (amtInput) {
+                amtInput.value = (qty * rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            updateModalTotals();
+        }
+
+        function updateModalTotals() {
+            const modalRows = document.querySelectorAll('#ciplItemsModalTable tbody tr');
+            let totalAmount = 0;
+            let totalNetWt = 0;
+            modalRows.forEach(mr => {
+                const amtVal = parseFloat(mr.querySelector('.modal-cipl-amt')?.value.replace(/,/g, '')) || 0;
+                const wtVal = parseFloat(mr.querySelector('.modal-cipl-tot-wt')?.value.replace(/,/g, '')) || 0;
+                totalAmount += amtVal;
+                totalNetWt += wtVal;
+            });
+            const curr = document.getElementById('modalCiplCurrency')?.value || document.getElementById('currencyInput')?.value || 'USD';
+            updateModalTotalDisplay(totalAmount, totalNetWt, curr);
         }
 
         function updateModalCurrency(newCurr) {
             if (document.getElementById('currencyInput')) {
                 document.getElementById('currencyInput').value = newCurr;
             }
-            const modalRows = document.querySelectorAll('#ciplItemsModalTable tbody tr');
-            let totalAmount = 0;
-            modalRows.forEach(mr => {
-                const amtText = mr.querySelectorAll('td')[5]?.innerText || '0';
-                totalAmount += parseFloat(amtText.replace(/,/g, '')) || 0;
-            });
-            updateModalTotalDisplay(totalAmount, newCurr);
+            updateModalTotals();
         }
 
-        function updateModalTotalDisplay(totalAmount, currency) {
+        function updateModalTotalDisplay(totalAmount, totalNetWt, currency) {
             document.getElementById('ciplModalTotalAmt').innerText = `${currency} ${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            if (document.getElementById('ciplModalTotalNetWt')) {
+                document.getElementById('ciplModalTotalNetWt').innerText = `${totalNetWt.toFixed(2)} KGS`;
+            }
         }
 
         function setAllModalPackaging(pkgType) {
@@ -1339,13 +1422,24 @@
                 const targetSl = mr.getAttribute('data-target-row-id');
                 const pkgType = mr.querySelector('.modal-cipl-pkg-type').value;
                 const pkgNo = mr.querySelector('.modal-cipl-pkg-no').value;
-                const hs = mr.querySelector('.modal-cipl-hs').value.trim();
-                const coo = mr.querySelector('.modal-cipl-coo').value.trim();
+                const unitRate = mr.querySelector('.modal-cipl-rate')?.value.trim();
+                const amount = mr.querySelector('.modal-cipl-amt')?.value.trim();
+                const unitWt = mr.querySelector('.modal-cipl-unit-wt')?.value.trim();
+                const totWt = mr.querySelector('.modal-cipl-tot-wt')?.value.trim();
+                const dims = mr.querySelector('.modal-cipl-dims')?.value.trim();
+                const hs = mr.querySelector('.modal-cipl-hs')?.value.trim();
+                const coo = mr.querySelector('.modal-cipl-coo')?.value.trim();
 
                 mainRows.forEach(mrMain => {
                     if (mrMain.querySelector('.row-sl-no').innerText === targetSl) {
                         mrMain.querySelector('.item-pkg-type').value = pkgType;
                         mrMain.querySelector('.item-pkg-no').value = pkgNo;
+                        if (unitRate) mrMain.querySelector('.item-rate').value = unitRate;
+                        if (amount) mrMain.querySelector('.item-amount').value = amount;
+                        
+                        mrMain.setAttribute('data-unit-weight', unitWt);
+                        mrMain.setAttribute('data-total-weight', totWt);
+                        mrMain.setAttribute('data-dimensions', dims);
                         mrMain.setAttribute('data-hs-code', hs);
                         mrMain.setAttribute('data-hs-code-custom', hs);
                         mrMain.setAttribute('data-coo', coo);
