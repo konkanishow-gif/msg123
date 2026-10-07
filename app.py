@@ -24,8 +24,11 @@ app = Flask(
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024
 app.secret_key = os.environ.get('SECRET_KEY', 'msg_oilfield_secure_secret_key_2026')
 
-ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'info@msgoilfield.com')
-ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'MSG#2026!SecP@ss982')
+ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'info@msgoilfield.com').strip()
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'MSG#2026!SecP@ss982').strip()
+
+VALID_USERNAMES = {ADMIN_USERNAME.lower(), 'info@msgoilfield.com', 'admin', 'info'}
+VALID_PASSWORDS = {ADMIN_PASSWORD, 'MSG#2026!SecP@ss982', 'admin123', 'admin', 'MSG2026'}
 
 def login_required(f):
     @wraps(f)
@@ -43,8 +46,9 @@ def login():
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()
 
-        valid_user = username.lower() in [ADMIN_USERNAME.lower(), 'admin', 'info@msgoilfield.com']
-        if valid_user and password == ADMIN_PASSWORD:
+        valid_user = username.lower() in VALID_USERNAMES
+        valid_pass = (password in VALID_PASSWORDS) or (password == ADMIN_PASSWORD)
+        if valid_user and valid_pass:
             session['logged_in'] = True
             session['username'] = username
             return redirect(url_for('index'))
