@@ -129,6 +129,12 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
     po_number = str(data.get('po_number', '10025 // 10044')).strip() or '10025 // 10044'
     msg_ref = str(data.get('msg_ref', 'MSG-0826-2117 / MSG-0926-2135')).strip() or 'MSG-0826-2117 / MSG-0926-2135'
     
+    currency = str(data.get('currency', 'AED')).strip().upper() or 'AED'
+    if currency in ['$', 'DOLLAR', 'US DOLLAR', 'US$']:
+        currency = 'USD'
+    elif currency in ['DIRHAM', 'DHS']:
+        currency = 'AED'
+    
     inv_no = data.get('inv_no')
     if not inv_no:
         if '/' in msg_ref:
@@ -151,9 +157,10 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
         client_po_it = it.get('client_po_item_no', str(sl))
         desc = it.get('description', '')
         make = it.get('make', '')
+        remarks = it.get('remarks', '')
         
         # Origin & HS
-        coo = (it.get('country_of_origin') or auto_detect_country_of_origin(make, desc)).upper()
+        coo = (it.get('country_of_origin') or auto_detect_country_of_origin(make, desc, remarks)).upper()
         hs = format_full_hs_code(it.get('hs_code') or auto_detect_hs_code(desc))
         
         distinct_origins.add(coo)
@@ -406,7 +413,7 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
     start_row = render_common_header(ws_inv, "INVOICE")
     
     # Table Header (Row 19)
-    inv_headers = ["SR NO", "DESCRIPTION", "QTY", "UOM", "H.S. CODE", "ORIGIN", "UNIT PRICE/AED", "TOTAL VALUE/AED"]
+    inv_headers = ["SR NO", "DESCRIPTION", "QTY", "UOM", "H.S. CODE", "ORIGIN", f"UNIT PRICE/{currency}", f"TOTAL VALUE/{currency}"]
     ws_inv.row_dimensions[start_row].height = 24
     for c_idx, h in enumerate(inv_headers, start=1):
         cell = ws_inv.cell(row=start_row, column=c_idx, value=h)
@@ -464,7 +471,7 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
             
     # Bottom Total Row
     ws_inv.merge_cells(start_row=curr_row, start_column=1, end_row=curr_row, end_column=2)
-    c_tot_label = ws_inv.cell(row=curr_row, column=1, value="TOTAL VALUE IN AED.")
+    c_tot_label = ws_inv.cell(row=curr_row, column=1, value=f"TOTAL VALUE IN {currency}.")
     c_tot_label.font = f_data_bold
     c_tot_label.alignment = Alignment(horizontal='center', vertical='center')
     
@@ -479,7 +486,7 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
     ws_inv.cell(row=curr_row, column=5, value="").border = thin_border
     ws_inv.cell(row=curr_row, column=6, value="").border = thin_border
     
-    c_cur = ws_inv.cell(row=curr_row, column=7, value="AED")
+    c_cur = ws_inv.cell(row=curr_row, column=7, value=currency)
     c_cur.font = f_data_bold
     c_cur.alignment = Alignment(horizontal='center', vertical='center')
     
@@ -495,7 +502,7 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
     # In Words Box
     curr_row += 1
     ws_inv.merge_cells(start_row=curr_row, start_column=1, end_row=curr_row, end_column=8)
-    words_str = f"IN WORDS : AED. {num_to_words(grand_total_amt)} ONLY"
+    words_str = f"IN WORDS : {currency}. {num_to_words(grand_total_amt)} ONLY"
     c_words = ws_inv.cell(row=curr_row, column=1, value=words_str)
     c_words.font = f_data_bold
     c_words.alignment = Alignment(horizontal='left', vertical='center', indent=1)

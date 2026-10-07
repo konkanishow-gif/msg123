@@ -384,17 +384,27 @@
                     <img src="{{ url_for('static', filename='logo.png') }}" alt="MSG Logo" class="logo-preview">
                 </div>
                 <div class="row g-3">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label fw-semibold">Client Name</label>
                         <input type="text" id="clientInput" class="form-control" placeholder="Client Name">
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label fw-semibold">PO Number</label>
                         <input type="text" id="poInput" class="form-control" placeholder="PO Number">
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label fw-semibold">MSG Ref</label>
                         <input type="text" id="msgRefInput" class="form-control" placeholder="MSG Ref">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold"><i class="bi bi-currency-exchange text-warning me-1"></i>SO Currency</label>
+                        <select id="currencyInput" class="form-select">
+                            <option value="USD">USD ($ - US Dollar)</option>
+                            <option value="AED">AED (Dhs - UAE Dirham)</option>
+                            <option value="SAR">SAR (SR - Saudi Riyal)</option>
+                            <option value="EUR">EUR (€ - Euro)</option>
+                            <option value="GBP">GBP (£ - British Pound)</option>
+                        </select>
                     </div>
                 </div>
             </div>
@@ -622,10 +632,22 @@
                 <div class="modal-body p-4 bg-light">
                     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                         <p class="text-muted small mb-0"><i class="bi bi-info-circle me-1"></i> Review Pallet/Box packaging, prices, auto-detected <strong>Country of Origin (COO)</strong>, and <strong>HS Codes</strong>.</p>
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-xs btn-outline-primary" onclick="setAllModalPackaging('Pallet')"><i class="bi bi-stack me-1"></i>All Pallet</button>
-                            <button type="button" class="btn btn-xs btn-outline-info text-dark" onclick="setAllModalPackaging('Box')"><i class="bi bi-box me-1"></i>All Box</button>
-                            <button type="button" class="btn btn-xs btn-outline-dark" onclick="setAllModalPackaging('Crate')"><i class="bi bi-archive me-1"></i>All Crate</button>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <div class="d-flex align-items-center gap-1">
+                                <label class="form-label fw-semibold small mb-0 text-nowrap"><i class="bi bi-currency-exchange me-1"></i>Currency:</label>
+                                <select id="modalCiplCurrency" class="form-select form-select-sm" style="max-width: 120px;" onchange="updateModalCurrency(this.value)">
+                                    <option value="USD">USD ($)</option>
+                                    <option value="AED">AED</option>
+                                    <option value="SAR">SAR</option>
+                                    <option value="EUR">EUR (€)</option>
+                                    <option value="GBP">GBP (£)</option>
+                                </select>
+                            </div>
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-xs btn-outline-primary" onclick="setAllModalPackaging('Pallet')"><i class="bi bi-stack me-1"></i>All Pallet</button>
+                                <button type="button" class="btn btn-xs btn-outline-info text-dark" onclick="setAllModalPackaging('Box')"><i class="bi bi-box me-1"></i>All Box</button>
+                                <button type="button" class="btn btn-xs btn-outline-dark" onclick="setAllModalPackaging('Crate')"><i class="bi bi-archive me-1"></i>All Crate</button>
+                            </div>
                         </div>
                     </div>
                     <div class="table-responsive" style="max-height: 380px;">
@@ -646,9 +668,9 @@
                         </table>
                     </div>
                 </div>
-                <div class="modal-footer bg-white d-flex justify-content-between align-items-center">
+                <div class="modal-footer bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <div>
-                        <span class="fw-bold text-dark me-2">Total Value: <span id="ciplModalTotalAmt" class="text-success fs-6">$0.00</span></span>
+                        <span class="fw-bold text-dark me-2">Total Value: <span id="ciplModalTotalAmt" class="text-success fs-6 fw-bold">USD 0.00</span></span>
                     </div>
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -882,10 +904,74 @@
             });
         }
 
+        function autoDetectCooJs(makeText = '', descText = '', remarksText = '') {
+            const text = (String(makeText) + ' ' + String(descText) + ' ' + String(remarksText)).toUpperCase();
+            if (/\b(FRANCE|DELCORTE)\b/.test(text)) return 'France';
+            if (/\b(GERMANY|OMSA|WMASS|WMAASS)\b/.test(text)) return 'Germany';
+            if (/\b(ITALY|ITALIAN|METALFAR|MFF|MELESI|MEGA|RACCORTUBI|AR\s*ITALY)\b/.test(text) || text.includes('ITAL')) return 'Italy';
+            if (/\b(KOREA|TK|ST&H|STH|SEGYUNG)\b/.test(text)) return 'South Korea';
+            if (/\b(THAILAND|BENKAN)\b/.test(text)) return 'Thailand';
+            if (/\b(SPAIN|ULMA)\b/.test(text)) return 'Spain';
+            if (/\b(TAIWAN)\b/.test(text)) return 'Taiwan';
+            if (/\b(USA|UNITED STATES|VALVEWORKS)\b/.test(text)) return 'USA';
+            if (/\b(UK|UNITED KINGDOM|ENGLAND|PROMAT)\b/.test(text)) return 'United Kingdom';
+            if (/\b(JAPAN|KITZ)\b/.test(text)) return 'Japan';
+            if (/\b(INDIA)\b/.test(text)) return 'India';
+            if (/\b(CHINA)\b/.test(text)) return 'China';
+            if (/\b(UAE|UNITED ARAB EMIRATES|DUBAI)\b/.test(text)) return 'UAE';
+            if (text.includes('METALFAR') || text.includes('ITAL')) return 'Italy';
+            if (text.includes('DELCORTE')) return 'France';
+            return 'Italy';
+        }
+
+        function autoDetectHsJs(descText = '') {
+            const text = String(descText).toUpperCase();
+            if (/\b(FLANGE|WNRF|BLIND|SPECTACLE|SLIP-ON|SO\s*FLANGE|SW\s*FLANGE|RTJ\s*FLANGE|ORIFICE)\b/.test(text)) {
+                if (/\b(316|316L|304|304L|SS|STAINLESS|INCONEL|DUPLEX|SUPER DUPLEX)\b/.test(text)) return '7307.21.00';
+                return '7307.91.00';
+            }
+            if (/\b(ELBOW|TEE|REDUCER|CAP|CROSS|ECC\.?\s*RED|CONC\.?\s*RED|BEND)\b/.test(text)) {
+                if (/\b(316|316L|304|304L|SS|STAINLESS)\b/.test(text)) return '7307.23.00';
+                return '7307.93.00';
+            }
+            if (/\b(SWAGE|NIPPLE|COUPLING|UNION|WELDOLET|SOCKOLET|THREADOLET|NIPPOLET|LATROLET|BUSHING|PLUG|OLET)\b/.test(text)) {
+                if (/\b(316|316L|304|304L|SS|STAINLESS)\b/.test(text)) return '7307.29.00';
+                return '7307.92.00';
+            }
+            if (/\b(PIPE|TUBE|SMLS|TUBING)\b/.test(text)) {
+                if (/\b(316|316L|304|304L|SS|STAINLESS)\b/.test(text)) return '7304.41.00';
+                return '7304.19.00';
+            }
+            if (/\b(VALVE|BALL VALVE|CHECK VALVE|GATE VALVE|GLOBE VALVE|NEEDLE VALVE|BUTTERFLY)\b/.test(text)) return '8481.80.00';
+            if (/\b(GASKET|SPIRAL WOUND|INSULATION KIT|RING JOINT)\b/.test(text)) return '6812.99.00';
+            if (/\b(STUD|BOLT|NUT|FASTENER|WASHER)\b/.test(text)) return '7318.15.00';
+            return '7307.93.00';
+        }
+
+        function onItemDetailsChange(input) {
+            const tr = input.closest('tr');
+            if (!tr) return;
+            const desc = tr.querySelector('.item-desc')?.value || '';
+            const make = tr.querySelector('.item-make')?.value || '';
+            const remarks = tr.querySelector('.item-remarks')?.value || '';
+
+            if (!tr.getAttribute('data-coo-custom')) {
+                const coo = autoDetectCooJs(make, desc, remarks);
+                if (coo) tr.setAttribute('data-coo', coo);
+            }
+            if (!tr.getAttribute('data-hs-code-custom')) {
+                const hs = autoDetectHsJs(desc);
+                if (hs) tr.setAttribute('data-hs-code', hs);
+            }
+        }
+
         function populateEditor(data) {
             document.getElementById('clientInput').value = data.client || '';
             document.getElementById('poInput').value = data.po_number || '';
             document.getElementById('msgRefInput').value = data.msg_ref || '';
+            if (data.currency && document.getElementById('currencyInput')) {
+                document.getElementById('currencyInput').value = data.currency;
+            }
             if (data.filter_machined_only !== undefined) {
                 document.getElementById('filterMachinedCheck').checked = Boolean(data.filter_machined_only);
             }
@@ -948,8 +1034,15 @@
             const groupId = item.group_id || ('grp-' + clientPoItVal);
             tr.setAttribute('data-group-id', groupId);
             tr.setAttribute('data-total-qty', totalQty);
-            tr.setAttribute('data-hs-code', item.hs_code || '7307.93.00');
-            tr.setAttribute('data-coo', item.country_of_origin || (item.make && item.make.includes('FRANCE') ? 'France' : (item.make && item.make.includes('ITALY') ? 'Italy' : 'France')));
+            
+            const descVal = item.description || '';
+            const makeVal = item.make || '';
+            const remarksVal = item.remarks || '';
+            const detectedCoo = item.country_of_origin || autoDetectCooJs(makeVal, descVal, remarksVal);
+            const detectedHs = item.hs_code || autoDetectHsJs(descVal);
+
+            tr.setAttribute('data-hs-code', detectedHs);
+            tr.setAttribute('data-coo', detectedCoo);
 
             tr.innerHTML = `
                 <td class="text-center">
@@ -960,7 +1053,7 @@
                     <input type="text" class="form-control form-control-sm text-center item-client-po-item-no" value="${escapeHtml(clientPoItVal)}" placeholder="1" onchange="onClientPoItemNoChange(this)">
                 </td>
                 <td>
-                    <textarea class="form-control desc item-desc" placeholder="Item Description">${escapeHtml(item.description || '')}</textarea>
+                    <textarea class="form-control desc item-desc" placeholder="Item Description" oninput="onItemDetailsChange(this)">${escapeHtml(item.description || '')}</textarea>
                 </td>
                 <td>
                     <input type="text" class="form-control form-control-sm text-center item-qty" value="${escapeHtml(item.qty || '1.00')}" oninput="calculateRowAmount(this)" onchange="validateQtyChange(this)">
@@ -994,10 +1087,10 @@
                     <input type="text" class="form-control form-control-sm text-center item-cert" value="${escapeHtml(item.certificate_number || '')}">
                 </td>
                 <td>
-                    <input type="text" class="form-control form-control-sm text-center item-make" value="${escapeHtml(item.make || '')}">
+                    <input type="text" class="form-control form-control-sm text-center item-make" value="${escapeHtml(item.make || '')}" oninput="onItemDetailsChange(this)">
                 </td>
                 <td>
-                    <input type="text" class="form-control form-control-sm item-remarks" value="${escapeHtml(item.remarks || '')}">
+                    <input type="text" class="form-control form-control-sm item-remarks" value="${escapeHtml(item.remarks || '')}" oninput="onItemDetailsChange(this)">
                 </td>
                 <td class="internal-col">
                     <input type="text" class="form-control form-control-sm item-supplier-name" list="suppliersList" value="${escapeHtml(item.supplier_name || '')}" placeholder="Supplier">
@@ -1155,22 +1248,35 @@
             tbody.innerHTML = '';
             let totalAmount = 0;
 
+            const curr = document.getElementById('currencyInput')?.value || 'USD';
+            if (document.getElementById('modalCiplCurrency')) {
+                document.getElementById('modalCiplCurrency').value = curr;
+            }
+
             targets.forEach((r, idx) => {
                 const sl = r.querySelector('.row-sl-no').innerText;
                 const desc = r.querySelector('.item-desc').value;
+                const make = r.querySelector('.item-make')?.value || '';
+                const remarks = r.querySelector('.item-remarks')?.value || '';
                 const qty = r.querySelector('.item-qty').value;
                 const uom = r.querySelector('.item-uom').value;
                 const pkgType = r.querySelector('.item-pkg-type').value;
                 const pkgNo = r.querySelector('.item-pkg-no').value;
                 const rate = r.querySelector('.item-rate').value;
                 const amt = r.querySelector('.item-amount').value;
-                const hs = r.getAttribute('data-hs-code') || '7307.93.00';
-                const coo = r.getAttribute('data-coo') || 'France';
+
+                // Dynamically detect Country of Origin from live make, desc & remarks
+                const customCoo = r.getAttribute('data-coo-custom');
+                const coo = customCoo || autoDetectCooJs(make, desc, remarks) || r.getAttribute('data-coo') || 'Italy';
+
+                // Dynamically detect HS code from live desc
+                const customHs = r.getAttribute('data-hs-code-custom');
+                const hs = customHs || autoDetectHsJs(desc) || r.getAttribute('data-hs-code') || '7307.93.00';
 
                 totalAmount += parseFloat(amt.replace(/,/g, '')) || 0;
 
                 const tr = document.createElement('tr');
-                tr.setAttribute('data-target-row-id', r.querySelector('.row-sl-no').innerText);
+                tr.setAttribute('data-target-row-id', sl);
                 tr.innerHTML = `
                     <td class="text-center">${sl}</td>
                     <td style="font-size:0.85rem;"><div style="max-height:48px; overflow-y:auto;">${escapeHtml(desc)}</div></td>
@@ -1198,10 +1304,27 @@
                 tbody.appendChild(tr);
             });
 
-            document.getElementById('ciplModalTotalAmt').innerText = `$${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            updateModalTotalDisplay(totalAmount, curr);
 
             const modal = new bootstrap.Modal(document.getElementById('ciplConfigModal'));
             modal.show();
+        }
+
+        function updateModalCurrency(newCurr) {
+            if (document.getElementById('currencyInput')) {
+                document.getElementById('currencyInput').value = newCurr;
+            }
+            const modalRows = document.querySelectorAll('#ciplItemsModalTable tbody tr');
+            let totalAmount = 0;
+            modalRows.forEach(mr => {
+                const amtText = mr.querySelectorAll('td')[5]?.innerText || '0';
+                totalAmount += parseFloat(amtText.replace(/,/g, '')) || 0;
+            });
+            updateModalTotalDisplay(totalAmount, newCurr);
+        }
+
+        function updateModalTotalDisplay(totalAmount, currency) {
+            document.getElementById('ciplModalTotalAmt').innerText = `${currency} ${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         }
 
         function setAllModalPackaging(pkgType) {
@@ -1224,10 +1347,17 @@
                         mrMain.querySelector('.item-pkg-type').value = pkgType;
                         mrMain.querySelector('.item-pkg-no').value = pkgNo;
                         mrMain.setAttribute('data-hs-code', hs);
+                        mrMain.setAttribute('data-hs-code-custom', hs);
                         mrMain.setAttribute('data-coo', coo);
+                        mrMain.setAttribute('data-coo-custom', coo);
                     }
                 });
             });
+
+            const selCurr = document.getElementById('modalCiplCurrency')?.value;
+            if (selCurr && document.getElementById('currencyInput')) {
+                document.getElementById('currencyInput').value = selCurr;
+            }
 
             bootstrap.Modal.getInstance(document.getElementById('ciplConfigModal')).hide();
             downloadCIPL();
@@ -1537,8 +1667,8 @@
                     remarks: row.querySelector('.item-remarks')?.value.trim() || '',
                     supplier_name: row.querySelector('.item-supplier-name')?.value.trim() || '',
                     supplier_po: row.querySelector('.item-supplier-po')?.value.trim() || '',
-                    hs_code: row.getAttribute('data-hs-code') || '7307.93.00',
-                    country_of_origin: row.getAttribute('data-coo') || 'France'
+                    hs_code: row.getAttribute('data-hs-code') || autoDetectHsJs(row.querySelector('.item-desc')?.value || '') || '7307.93.00',
+                    country_of_origin: row.getAttribute('data-coo') || autoDetectCooJs(row.querySelector('.item-make')?.value || '', row.querySelector('.item-desc')?.value || '', row.querySelector('.item-remarks')?.value || '') || 'Italy'
                 });
             });
 
@@ -1546,6 +1676,7 @@
                 client: document.getElementById('clientInput').value.trim(),
                 po_number: document.getElementById('poInput').value.trim(),
                 msg_ref: document.getElementById('msgRefInput').value.trim(),
+                currency: document.getElementById('currencyInput')?.value || document.getElementById('modalCiplCurrency')?.value || 'USD',
                 filter_machined_only: document.getElementById('filterMachinedCheck').checked,
                 editor_username: document.getElementById('currentUsernameBadge')?.innerText.trim() || 'Admin',
                 items: items

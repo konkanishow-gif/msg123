@@ -63,16 +63,16 @@ def auto_detect_make(raw_text):
             return make_val
     return ""
 
-def auto_detect_country_of_origin(make_text="", desc_text=""):
+def auto_detect_country_of_origin(make_text="", desc_text="", remarks_text=""):
     """
-    Auto-detects Country of Origin (COO) for CIPL from MAKE or description.
+    Auto-detects Country of Origin (COO) for CIPL from MAKE, remarks, or description.
     """
-    text = f"{make_text} {desc_text}".upper()
+    text = f"{make_text} {desc_text} {remarks_text}".upper()
     if re.search(r"\b(FRANCE|DELCORTE)\b", text):
         return "France"
     if re.search(r"\b(GERMANY|OMSA|WMASS|WMAASS)\b", text):
         return "Germany"
-    if re.search(r"\b(ITALY|METALFAR|MFF|MELESI|MEGA|RACCORTUBI)\b", text):
+    if re.search(r"\b(ITALY|ITALIAN|METALFAR|MFF|MELESI|MEGA|RACCORTUBI|AR\s*ITALY)\b", text) or "ITAL" in text:
         return "Italy"
     if re.search(r"\b(KOREA|TK|ST&H|STH|SEGYUNG)\b", text):
         return "South Korea"
@@ -80,9 +80,11 @@ def auto_detect_country_of_origin(make_text="", desc_text=""):
         return "Thailand"
     if re.search(r"\b(SPAIN|ULMA)\b", text):
         return "Spain"
+    if re.search(r"\b(TAIWAN)\b", text):
+        return "Taiwan"
     if re.search(r"\b(USA|UNITED STATES|VALVEWORKS)\b", text):
         return "USA"
-    if re.search(r"\b(UK|UNITED KINGDOM|ENGLAND)\b", text):
+    if re.search(r"\b(UK|UNITED KINGDOM|ENGLAND|PROMAT)\b", text):
         return "United Kingdom"
     if re.search(r"\b(JAPAN|KITZ)\b", text):
         return "Japan"
@@ -90,7 +92,14 @@ def auto_detect_country_of_origin(make_text="", desc_text=""):
         return "India"
     if re.search(r"\b(CHINA)\b", text):
         return "China"
-    return "France" if "DELCORTE" in text else ("Italy" if "METALFAR" in text else "UAE")
+    if re.search(r"\b(UAE|UNITED ARAB EMIRATES|DUBAI)\b", text):
+        return "UAE"
+    if "METALFAR" in text or "ITAL" in text:
+        return "Italy"
+    if "DELCORTE" in text:
+        return "France"
+    return "Italy"
+
 
 def auto_detect_hs_code(desc_text=""):
     """
@@ -559,9 +568,22 @@ def extract_pdf_data(pdf_path_or_file):
                 it["total_qty"] = fmt_total
                 it["group_id"] = f"grp-{c_no}"
 
+    # Detect currency
+    currency = "USD"
+    if re.search(r"\b(?:AED|Dhs|Dirham)\b", full_text, re.IGNORECASE) or "-AED" in full_text:
+        currency = "AED"
+    elif re.search(r"\b(?:USD|\$|Dollar)\b", full_text, re.IGNORECASE):
+        currency = "USD"
+    elif re.search(r"\b(?:SAR|SR|Riyal)\b", full_text, re.IGNORECASE):
+        currency = "SAR"
+    elif re.search(r"\b(?:EUR|Euro|€)\b", full_text, re.IGNORECASE):
+        currency = "EUR"
+
     return {
         "client": client,
         "po_number": po_number,
         "msg_ref": msg_ref,
+        "currency": currency,
         "items": items
     }
+
