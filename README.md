@@ -4,7 +4,7 @@ An automated web appl  ication that parses Sales Order & Purchase Order PDFs, ex
                                      
 ---            dg  
  
-## 🌟 Key Features
+## 🌟 Key Features 
 
 - **Automatic PDF Extraction**: Extracts `Client Name`, `PO Number`, `MSG Ref`, and line items (`SL NO`, `Description`, `PO Qty`, `UOM`) from uploaded PDFs.
 - **Dual Excel Export Modes**:
