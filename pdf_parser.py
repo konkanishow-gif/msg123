@@ -24,7 +24,7 @@ COMMON_ITEM_WORDS = {
 }
 
 REMARK_PATTERN = re.compile(
-    r"\b(machined(?:\s+from)?|modified(?:\s+from)?|offered|made\s+from|fabricated(?:\s+from)?|locally)\b.*",
+    r"\b(machined?(?:\s+from)?|machining|modified?(?:\s+from)?|mod(?:\s+from)?|offered?|made\s+from|fabricated?(?:\s+from)?|fab(?:\.|\s+from|\b)|fabrication|locally)\b.*",
     re.IGNORECASE
 )
 

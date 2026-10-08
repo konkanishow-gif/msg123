@@ -2005,7 +2005,7 @@
             return payload;
         }
 
-        const MANUFACTURING_KEYWORDS = ["machined", "fabricated", "made from", "modified", "locally", "offered"];
+        const MANUFACTURING_KEYWORDS = ["machined", "machining", "machine", "fabricated", "fabrication", "fabricate", "fab", "made from", "modified", "modify", "mod", "locally", "offered", "offer"];
         function isMeaningfulRemark(text) {
             if (!text) return false;
             const lower = text.toLowerCase();

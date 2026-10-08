@@ -98,13 +98,15 @@ def get_all_sheets(search_query=""):
         msg_ref = str(s.get('msg_ref', '')).lower()
         timestamp = str(s.get('formatted_date', '')).lower()
         
-        # Search inside items text as well
+        editor = str(s.get('editor_username', '')).lower()
+        
+        # Search inside items text as well (description, remarks, make, supplier, po, etc.)
         item_text = " ".join(
-            str(it.get('description', '')) + " " + str(it.get('remarks', '')) + " " + str(it.get('make', ''))
+            f"{it.get('description', '')} {it.get('remarks', '')} {it.get('make', '')} {it.get('supplier_name', '')} {it.get('supplier_po', '')} {it.get('client_po_item_no', '')}"
             for it in s.get('items', [])
         ).lower()
 
-        if q in client or q in po or q in msg_ref or q in timestamp or q in item_text:
+        if q in client or q in po or q in msg_ref or q in timestamp or q in editor or q in item_text:
             filtered.append(s)
 
     return filtered

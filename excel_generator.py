@@ -4,12 +4,15 @@ import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.drawing.image import Image
 
-MANUFACTURING_KEYWORDS = ["machined", "fabricated", "made from", "modified", "locally", "offered"]
+MANUFACTURING_KEYWORDS = [
+    "machined", "machining", "machine", "fabricated", "fabrication", "fabricate", "fab",
+    "made from", "modified", "modify", "mod", "locally", "offered", "offer"
+]
 
 def is_meaningful_item(item):
     """
     Checks if an item contains meaningful manufacturing/sourcing keywords in remarks or description.
-    Keywords: Machined From, Fabricated From, Made from, Modified from, Locally, Offered.
+    Keywords: Machined From, Fabricated From, Made from, Modified from, Locally, Offered, FAB, etc.
     """
     text = (str(item.get("remarks", "")) + " " + str(item.get("description", ""))).lower()
     return any(re.search(r"\b" + kw, text, re.IGNORECASE) for kw in MANUFACTURING_KEYWORDS)
