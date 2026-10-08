@@ -3,7 +3,7 @@
 An automated web appl  ication that parses Sales Order & Purchase Order PDFs, extracts line items, supports multi-heat & partial item splits, and exports styled Excel Summary Sheets.
                                      
 ---            dg  
-
+ 
 ## 🌟 Key Features
 
 - **Automatic PDF Extraction**: Extracts `Client Name`, `PO Number`, `MSG Ref`, and line items (`SL NO`, `Description`, `PO Qty`, `UOM`) from uploaded PDFs.
