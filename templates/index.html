@@ -446,7 +446,8 @@
                         <h5 class="fw-bold text-dark mb-0 d-inline-block me-3"><i class="bi bi-table text-warning me-2"></i>Summary Line Items (Live Preview)</h5>
                         <small class="text-muted"><i class="bi bi-info-circle"></i> Use checkboxes on the left to Convert selected items to <strong>Supplier PO</strong> or <strong>CIPL</strong>.</small>
                     </div>
-                    <div class="d-flex gap-2 flex-wrap">
+                    <div class="d-flex gap-2 flex-wrap align-items-center">
+                        <span id="autosaveStatusBadge" class="badge bg-light text-muted border px-2 py-1" style="font-size: 0.8rem;"><i class="bi bi-cloud-check text-secondary me-1"></i>Autosave Ready</span>
                         <button class="btn btn-sm btn-msg-primary" onclick="saveWorksheetProgress(false)"><i class="bi bi-cloud-check-fill me-1"></i>Save Draft</button>
                         <button class="btn btn-sm btn-outline-warning text-dark" onclick="saveWorksheetProgress(true)" title="Save as a separate draft (e.g. 2nd editor)"><i class="bi bi-copy me-1"></i>Save as New Draft</button>
                         <button class="btn btn-sm btn-preview" onclick="openExcelPreviewModal()"><i class="bi bi-eye-fill me-1"></i>Preview Excel</button>
@@ -823,6 +824,20 @@
             fetchSuppliers();
             fetchHistory();
             checkCloudinaryStatus();
+
+            // Setup autosave triggers on header inputs and table changes
+            ['clientInput', 'poInput', 'msgRefInput', 'currencyInput', 'filterMachinedCheck'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('input', () => triggerAutoSave());
+                    el.addEventListener('change', () => triggerAutoSave());
+                }
+            });
+            const tableBody = document.getElementById('itemsTableBody');
+            if (tableBody) {
+                tableBody.addEventListener('input', () => triggerAutoSave());
+                tableBody.addEventListener('change', () => triggerAutoSave());
+            }
         });
 
         function fetchSuppliers() {
@@ -1997,11 +2012,34 @@
             return MANUFACTURING_KEYWORDS.some(kw => new RegExp('\\b' + kw, 'i').test(lower));
         }
 
-        function saveWorksheetProgress(saveAsNewDraft = false) {
+        let autoSaveTimer = null;
+        function triggerAutoSave() {
+            // Only autosave if editor is open and has items or header info
+            if (document.getElementById('editorSection').classList.contains('d-none')) return;
+            const badge = document.getElementById('autosaveStatusBadge');
+            if (badge) {
+                badge.className = 'badge bg-warning bg-opacity-25 text-dark border px-2 py-1';
+                badge.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" style="width:0.7rem;height:0.7rem;"></span>Syncing...';
+            }
+            if (autoSaveTimer) clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(() => {
+                saveWorksheetProgress(false, true);
+            }, 3000);
+        }
+
+        function saveWorksheetProgress(saveAsNewDraft = false, isAutosave = false) {
             const payload = buildPayload();
+            if (!payload.items || payload.items.length === 0) return;
+
             if (saveAsNewDraft) {
                 payload.save_as_new_draft = true;
                 delete payload.id; // generate new unique draft ID
+            }
+
+            const badge = document.getElementById('autosaveStatusBadge');
+            if (badge) {
+                badge.className = 'badge bg-warning bg-opacity-25 text-dark border px-2 py-1';
+                badge.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" style="width:0.7rem;height:0.7rem;"></span>Backing up...';
             }
 
             fetch('/api/save-worksheet', {
@@ -2014,12 +2052,32 @@
                 if (data.success && data.record) {
                     currentSheetSnapshotId = data.record.id;
                     fetchHistory();
-                    alert(saveAsNewDraft ? 'Created and saved as a NEW separate draft successfully!' : 'Worksheet draft saved successfully!');
+                    const now = new Date();
+                    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    if (badge) {
+                        badge.className = 'badge bg-success bg-opacity-25 text-success border px-2 py-1';
+                        badge.innerHTML = `<i class="bi bi-cloud-check-fill text-success me-1"></i>Cloud Autosaved (${timeStr})`;
+                    }
+                    if (!isAutosave) {
+                        alert(saveAsNewDraft ? 'Created and saved as a NEW separate draft successfully!' : 'Worksheet draft saved successfully!');
+                    }
                 } else {
-                    alert('Error saving worksheet progress: ' + (data.error || 'Unknown error'));
+                    if (badge) {
+                        badge.className = 'badge bg-danger bg-opacity-25 text-danger border px-2 py-1';
+                        badge.innerHTML = '<i class="bi bi-exclamation-circle-fill text-danger me-1"></i>Save failed';
+                    }
+                    if (!isAutosave) {
+                        alert('Error saving worksheet progress: ' + (data.error || 'Unknown error'));
+                    }
                 }
             })
-            .catch(err => alert('Save failed: ' + err.message));
+            .catch(err => {
+                if (badge) {
+                    badge.className = 'badge bg-danger bg-opacity-25 text-danger border px-2 py-1';
+                    badge.innerHTML = '<i class="bi bi-exclamation-circle-fill text-danger me-1"></i>Save error';
+                }
+                if (!isAutosave) alert('Save failed: ' + err.message);
+            });
         }
 
         // --- Sales Orders & Multi-Draft History Portal ---

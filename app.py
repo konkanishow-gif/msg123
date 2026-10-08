@@ -255,9 +255,20 @@ def download_excel():
         
         stream = generate_summary_excel(data, is_internal=is_internal, filter_machined_only=filter_machined_only)
         
-        # Save snapshot in background
+        # Save snapshot & Cloudinary backup in background
+        file_urls = {}
+        if cloudinary_handler.is_cloudinary_configured():
+            try:
+                folder = "stores_excels" if is_internal else "client_excels"
+                url_key = "stores_excel_url" if is_internal else "client_excel_url"
+                c_url = cloudinary_handler.upload_file_to_cloudinary(stream, folder=folder, filename=filename)
+                if c_url:
+                    file_urls[url_key] = c_url
+            except Exception as e:
+                print(f"Cloudinary upload error during download: {e}")
+
         try:
-            history_manager.save_sheet_snapshot(data)
+            history_manager.save_sheet_snapshot(data, file_urls=file_urls)
         except Exception:
             pass
 
@@ -284,8 +295,17 @@ def download_cipl():
         
         stream = generate_cipl_excel(data)
         
+        file_urls = {}
+        if cloudinary_handler.is_cloudinary_configured():
+            try:
+                cipl_url = cloudinary_handler.upload_file_to_cloudinary(stream, folder="cipl_documents", filename=filename)
+                if cipl_url:
+                    file_urls["cipl_excel_url"] = cipl_url
+            except Exception as e:
+                print(f"Cloudinary upload error during CIPL download: {e}")
+
         try:
-            history_manager.save_sheet_snapshot(data)
+            history_manager.save_sheet_snapshot(data, file_urls=file_urls)
         except Exception:
             pass
 
