@@ -1,10 +1,33 @@
+import os
+import json
 import unittest
 import io
 import zipfile
 import openpyxl
 from app import app
+import history_manager
 
 class SummaryAppTestCase(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.history_file = history_manager.BUNDLED_HISTORY_FILE
+        cls.backup_data = None
+        if os.path.exists(cls.history_file):
+            try:
+                with open(cls.history_file, 'r', encoding='utf-8') as f:
+                    cls.backup_data = f.read()
+            except Exception:
+                pass
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.backup_data is not None and os.path.exists(cls.history_file):
+            try:
+                with open(cls.history_file, 'w', encoding='utf-8') as f:
+                    f.write(cls.backup_data)
+            except Exception:
+                pass
+
     def setUp(self):
         self.app = app.test_client()
         self.app.testing = True
