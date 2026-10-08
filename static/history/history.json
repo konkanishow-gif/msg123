@@ -1,5 +1,154 @@
 [
   {
+    "id": "draft_20261008_103840_eb53b9",
+    "timestamp": "2026-10-08T10:38:40.237057",
+    "formatted_date": "08 Oct 2026, 10:38 AM",
+    "client": "Test Client LLC",
+    "po_number": "PO-9999",
+    "msg_ref": "MSG-TEST-001",
+    "editor_username": "admin",
+    "item_count": 1,
+    "filter_machined_only": true,
+    "items": [
+      {
+        "description": "FLANGE 2\" 150#",
+        "sl_no": 1
+      }
+    ],
+    "file_urls": {
+      "client_excel_url": "https://res.cloudinary.com/za7di1ec/raw/upload/v1791436117/msg_oilfield/client_excels/Client_Summary_MSG-TEST-001_PO-9999.xlsx",
+      "stores_excel_url": "https://res.cloudinary.com/za7di1ec/raw/upload/v1791436118/msg_oilfield/stores_excels/Stores_Summary_MSG-TEST-001_PO-9999.xlsx",
+      "supplier_pdf_zip_url": "https://res.cloudinary.com/za7di1ec/raw/upload/v1791436119/msg_oilfield/supplier_packages/Supplier_PO_Package_MSG-TEST-001.zip",
+      "cipl_excel_url": "https://res.cloudinary.com/za7di1ec/raw/upload/v1791436120/msg_oilfield/cipl_documents/CIPL_MSG-TEST-001_PO-9999.xlsx"
+    }
+  },
+  {
+    "id": "draft_20261008_103836_5667ae",
+    "timestamp": "2026-10-08T10:38:36.472650",
+    "formatted_date": "08 Oct 2026, 10:38 AM",
+    "client": "Dubai Petroleum Establishment",
+    "po_number": "50307533",
+    "msg_ref": "MSG-1026-2171",
+    "editor_username": "Admin",
+    "item_count": 1,
+    "filter_machined_only": true,
+    "items": [
+      {
+        "certificate_number": "MTC-001",
+        "client_po_item_no": "10000",
+        "description": "UNION 1\", 6000#",
+        "heat_number": "HN123",
+        "make": "WMAASS",
+        "qty": "3 OF 5",
+        "remarks": "Machined from S.40 to Sch.20",
+        "sl_no": "1",
+        "supplier_name": "K.HASHIM LLC",
+        "supplier_po": "PO-1026-3789",
+        "uom": "pcs"
+      }
+    ],
+    "file_urls": {
+      "stores_excel_url": "https://res.cloudinary.com/za7di1ec/raw/upload/v1791436116/msg_oilfield/stores_excels/Internal_Stores_Summary_MSG-1026-2171_50307533.xlsx"
+    }
+  },
+  {
+    "id": "draft_20261008_103835_748d83",
+    "timestamp": "2026-10-08T10:38:35.545434",
+    "formatted_date": "08 Oct 2026, 10:38 AM",
+    "client": "Bahrain Special Technical Services (STS) Co. W.L.L",
+    "po_number": "MSG-0926-12389-Q",
+    "msg_ref": "MSG-1026-2177",
+    "editor_username": "Admin",
+    "item_count": 2,
+    "filter_machined_only": true,
+    "items": [
+      {
+        "amount": "3250.00",
+        "client_po_item_no": "1",
+        "description": "2\" BALL VALVE FLANGED ENDS",
+        "make": "BONNEY",
+        "package_no": "1",
+        "package_type": "Pallet",
+        "qty": "1.00",
+        "rate": "3250.00",
+        "sl_no": 1,
+        "uom": "pcs"
+      },
+      {
+        "amount": "60.00",
+        "client_po_item_no": "2",
+        "description": "SPIRAL WOUND GASKET",
+        "make": "LAMONS",
+        "package_no": "1",
+        "package_type": "Box",
+        "qty": "4.00",
+        "rate": "15.00",
+        "sl_no": 2,
+        "uom": "pcs"
+      }
+    ],
+    "file_urls": {
+      "cipl_excel_url": "https://res.cloudinary.com/za7di1ec/raw/upload/v1791436115/msg_oilfield/cipl_documents/CIPL_MSG-1026-2177_MSG-0926-12389-Q.xlsx"
+    }
+  },
+  {
+    "id": "draft_20261008_103834_17b7ff",
+    "timestamp": "2026-10-08T10:38:34.486574",
+    "formatted_date": "08 Oct 2026, 10:38 AM",
+    "client": "Test Client",
+    "po_number": "PO-10025",
+    "msg_ref": "MSG-0826-2117",
+    "editor_username": "Admin",
+    "item_count": 1,
+    "filter_machined_only": false,
+    "items": [
+      {
+        "certificate_number": "CE/2024/168",
+        "client_po_item_no": "35",
+        "description": "ECC SWAGE NIPPLE",
+        "heat_number": "27505",
+        "make": "CHERO ITALY",
+        "qty": "1.00",
+        "remarks": "Machined from bar",
+        "sl_no": 27,
+        "uom": "pcs"
+      }
+    ],
+    "file_urls": {
+      "client_excel_url": "https://res.cloudinary.com/za7di1ec/raw/upload/v1791436114/msg_oilfield/client_excels/Client_Summary_MSG-0826-2117_PO-10025.xlsx"
+    }
+  },
+  {
+    "id": "draft_20261008_103833_bda62c",
+    "timestamp": "2026-10-08T10:38:33.273081",
+    "formatted_date": "08 Oct 2026, 10:38 AM",
+    "client": "Test Client",
+    "po_number": "PO-10025",
+    "msg_ref": "MSG-0826-2117",
+    "editor_username": "Admin",
+    "item_count": 1,
+    "filter_machined_only": true,
+    "items": [
+      {
+        "amount": "570.00",
+        "client_po_item_no": "1",
+        "description": "CAP 10\" BENKAN/TK",
+        "dimensions": "25 X 20 X 10 CM",
+        "package_no": "1",
+        "package_type": "Pallet",
+        "qty": "2.00",
+        "rate": "285.00",
+        "sl_no": 1,
+        "total_weight": "1.20",
+        "unit_weight": "0.60",
+        "uom": "pcs"
+      }
+    ],
+    "file_urls": {
+      "cipl_excel_url": "https://res.cloudinary.com/za7di1ec/raw/upload/v1791436113/msg_oilfield/cipl_documents/CIPL_MSG-0826-2117_PO-10025.xlsx"
+    }
+  },
+  {
     "id": "draft_20261008_102457_48c0a9",
     "timestamp": "2026-10-08T10:24:57.705212",
     "formatted_date": "08 Oct 2026, 10:24 AM",

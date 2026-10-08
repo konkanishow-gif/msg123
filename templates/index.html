@@ -2245,10 +2245,10 @@
 
             document.getElementById('previewCountBadge').innerText = `${items.length} item(s) in export`;
 
-            const cols = isInternal ? 11 : 8;
+            const cols = isInternal ? 11 : 9;
             const headers = isInternal ? 
                 ["SL NO", "CLIENT PO ITEM NO", "Description", "PO Qty", "UOM", "Heat Number", "Certificate Number", "MAKE", "Remarks", "SUPPLIER NAME", "SUPPLIER PO #"] :
-                ["SL NO", "Description", "PO Qty", "UOM", "Heat Number", "Certificate Number", "MAKE", "Remarks"];
+                ["SL NO", "CLIENT PO ITEM NO", "Description", "PO Qty", "UOM", "Heat Number", "Certificate Number", "MAKE", "Remarks"];
 
             let html = `<table class="excel-table">`;
             
@@ -2269,7 +2269,7 @@
                 html += `
                 <tr>
                     <td colspan="5" class="excel-meta-cell">Client : ${escapeHtml(payload.client || '')}</td>
-                    <td colspan="2" rowspan="3" style="background:#f9f9f9; text-align:center; vertical-align:middle; font-weight:bold; color:#888;">[ Spacer ]</td>
+                    <td colspan="3" rowspan="3" style="background:#f9f9f9; text-align:center; vertical-align:middle; font-weight:bold; color:#888;">[ Spacer ]</td>
                     <td colspan="1" rowspan="3" style="text-align:center; vertical-align:middle;"><img src="/static/logo.png" style="max-height:45px;"></td>
                 </tr>
                 <tr><td colspan="5" class="excel-meta-cell">PO Number: ${escapeHtml(payload.po_number || '')}</td></tr>
@@ -2288,7 +2288,7 @@
                 html += `<tr>`;
                 if (isInternal) {
                     html += `<td style="text-align:center;">${it.sl_no || ''}</td>`;
-                    html += `<td style="text-align:center;">${escapeHtml(it.client_po_item_no || '')}</td>`;
+                    html += `<td style="text-align:center;">${escapeHtml(it.client_po_item_no || it.sl_no || '')}</td>`;
                     html += `<td style="white-space:pre-wrap; width:35%;">${escapeHtml(it.description || '')}</td>`;
                     html += `<td style="text-align:center;">${escapeHtml(it.qty || '')}</td>`;
                     html += `<td style="text-align:center;">${escapeHtml(it.uom || '')}</td>`;
@@ -2300,6 +2300,7 @@
                     html += `<td style="text-align:center;">${escapeHtml(it.supplier_po || '')}</td>`;
                 } else {
                     html += `<td style="text-align:center;">${it.sl_no || ''}</td>`;
+                    html += `<td style="text-align:center;">${escapeHtml(it.client_po_item_no || it.sl_no || '')}</td>`;
                     html += `<td style="white-space:pre-wrap; width:40%;">${escapeHtml(it.description || '')}</td>`;
                     html += `<td style="text-align:center;">${escapeHtml(it.qty || '')}</td>`;
                     html += `<td style="text-align:center;">${escapeHtml(it.uom || '')}</td>`;

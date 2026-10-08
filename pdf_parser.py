@@ -263,7 +263,10 @@ def _extract_items_from_tables(pdf):
                     if uom_m:
                         uom = uom_m.group(1).lower()
                         
-                if remaining and re.match(r"^\d+$", remaining[-1]):
+                if remaining and re.match(r"^\d{1,8}$", remaining[0]):
+                    client_po_no = remaining[0]
+                    remaining = remaining[1:]
+                elif remaining and re.match(r"^\d{1,8}$", remaining[-1]):
                     client_po_no = remaining[-1]
                     remaining = remaining[:-1]
                     
@@ -360,7 +363,10 @@ def _extract_items_from_text(lines):
                                 uom = sub_tokens[idx + 1]
                             
                             desc_sub = sub_tokens[:idx]
-                            if desc_sub and re.match(r"^\d{1,5}$", desc_sub[-1]):
+                            if desc_sub and re.match(r"^\d{1,8}$", desc_sub[0]):
+                                client_po_item_no = desc_sub[0]
+                                desc_sub = desc_sub[1:]
+                            elif desc_sub and re.match(r"^\d{1,8}$", desc_sub[-1]):
                                 client_po_item_no = desc_sub[-1]
                                 desc_sub = desc_sub[:-1]
                             
@@ -483,6 +489,16 @@ def extract_pdf_data(pdf_path_or_file):
 
         # Strip leading item sequence numbers e.g. "1 ECC. RED..." -> "ECC. RED..."
         item["description"] = strip_leading_item_number(item["description"], item["sl_no"])
+
+        # Check if description begins with a Client PO Item Number (e.g. "10000 UNION..." or "10 FLANGE...")
+        cpo_match = re.match(r"^(\d{1,8})\s+([A-Za-z].*)", item["description"])
+        if cpo_match:
+            cand_cpo = cpo_match.group(1)
+            if not item.get("client_po_item_no") or str(item.get("client_po_item_no")) == str(item.get("sl_no")):
+                item["client_po_item_no"] = cand_cpo
+                item["description"] = cpo_match.group(2).strip()
+            elif cand_cpo == str(item.get("client_po_item_no")):
+                item["description"] = cpo_match.group(2).strip()
 
         # 1. Extract product code strictly from the beginning of description
         product_code, clean_desc = extract_product_code_and_desc(item["description"])

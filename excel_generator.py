@@ -155,7 +155,8 @@ def generate_summary_excel(data, logo_path=None, output_path=None, is_internal=F
             c_sl = ws.cell(row=row_idx, column=1, value=item.get("sl_no", idx + 1))
             c_sl.alignment = Alignment(horizontal='center', vertical='center')
 
-            c_cpo = ws.cell(row=row_idx, column=2, value=item.get("client_po_item_no", item.get("sl_no", idx + 1)))
+            cpo_val = str(item.get("client_po_item_no") or item.get("sl_no") or (idx + 1)).strip()
+            c_cpo = ws.cell(row=row_idx, column=2, value=cpo_val)
             c_cpo.alignment = Alignment(horizontal='center', vertical='center')
 
             c_desc = ws.cell(row=row_idx, column=3, value=item.get("description", ""))
@@ -200,7 +201,8 @@ def generate_summary_excel(data, logo_path=None, output_path=None, is_internal=F
             c_sl = ws.cell(row=row_idx, column=1, value=item.get("sl_no", idx + 1))
             c_sl.alignment = Alignment(horizontal='center', vertical='center')
 
-            c_cpo = ws.cell(row=row_idx, column=2, value=item.get("client_po_item_no", item.get("sl_no", idx + 1)))
+            cpo_val = str(item.get("client_po_item_no") or item.get("sl_no") or (idx + 1)).strip()
+            c_cpo = ws.cell(row=row_idx, column=2, value=cpo_val)
             c_cpo.alignment = Alignment(horizontal='center', vertical='center')
 
             c_desc = ws.cell(row=row_idx, column=3, value=item.get("description", ""))
