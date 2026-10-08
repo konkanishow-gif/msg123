@@ -6,8 +6,8 @@
     "msg_ref": "MSG-1026-2178",
     "currency": "USD",
     "editor_username": "Admin",
-    "timestamp": "2026-10-08T05:00:00Z",
-    "formatted_date": "08 Oct 2026, 05:00 AM",
+    "timestamp": "2026-10-08T11:05:00Z",
+    "formatted_date": "08 Oct 2026, 11:05 AM",
     "item_count": 38,
     "filter_machined_only": false,
     "file_urls": {},
@@ -849,105 +849,6 @@
         "country_of_origin": "Taiwan"
       }
     ]
-  },
-  {
-    "id": "draft_20261008_105600_dd7235",
-    "timestamp": "2026-10-08T10:56:00.232002",
-    "formatted_date": "08 Oct 2026, 10:56 AM",
-    "client": "Test Client",
-    "po_number": "PO-100",
-    "msg_ref": "MSG-200",
-    "editor_username": "Admin",
-    "item_count": 1,
-    "filter_machined_only": true,
-    "items": [
-      {
-        "client_po_item_no": "10",
-        "description": "FAB ELBOW",
-        "qty": "5.00",
-        "remarks": "FAB FROM PIPE",
-        "sl_no": 1,
-        "uom": "pcs"
-      }
-    ],
-    "file_urls": {
-      "cipl_excel_url": "https://res.cloudinary.com/za7di1ec/raw/upload/v1791437160/msg_oilfield/cipl_documents/CIPL_MSG-200_PO-100.xlsx"
-    }
-  },
-  {
-    "id": "draft_20261008_105558_024321",
-    "timestamp": "2026-10-08T10:55:58.685791",
-    "formatted_date": "08 Oct 2026, 10:55 AM",
-    "client": "Test Client",
-    "po_number": "PO-100",
-    "msg_ref": "MSG-200",
-    "editor_username": "Admin",
-    "item_count": 1,
-    "filter_machined_only": true,
-    "items": [
-      {
-        "client_po_item_no": "10",
-        "description": "FAB ELBOW",
-        "qty": "5.00",
-        "remarks": "FAB FROM PIPE",
-        "sl_no": 1,
-        "uom": "pcs"
-      }
-    ],
-    "file_urls": {
-      "stores_excel_url": "https://res.cloudinary.com/za7di1ec/raw/upload/v1791437158/msg_oilfield/stores_excels/Internal_Stores_Summary_MSG-200_PO-100.xlsx"
-    }
-  },
-  {
-    "id": "draft_20261008_105557_a0b714",
-    "timestamp": "2026-10-08T10:55:57.674944",
-    "formatted_date": "08 Oct 2026, 10:55 AM",
-    "client": "Test Client",
-    "po_number": "PO-100",
-    "msg_ref": "MSG-200",
-    "editor_username": "Admin",
-    "item_count": 1,
-    "filter_machined_only": true,
-    "items": [
-      {
-        "client_po_item_no": "10",
-        "description": "FAB ELBOW",
-        "qty": "5.00",
-        "remarks": "FAB FROM PIPE",
-        "sl_no": 1,
-        "uom": "pcs"
-      }
-    ],
-    "file_urls": {
-      "client_excel_url": "https://res.cloudinary.com/za7di1ec/raw/upload/v1791437157/msg_oilfield/client_excels/Client_Summary_MSG-200_PO-100.xlsx"
-    }
-  },
-  {
-    "id": "draft_20261008_105556_2db18a",
-    "timestamp": "2026-10-08T10:55:56.492947",
-    "formatted_date": "08 Oct 2026, 10:55 AM",
-    "client": "Test Client",
-    "po_number": "PO-100",
-    "msg_ref": "MSG-200",
-    "editor_username": "Admin",
-    "item_count": 1,
-    "filter_machined_only": true,
-    "items": [
-      {
-        "client_po_item_no": "10",
-        "description": "FAB ELBOW",
-        "qty": "5.00",
-        "remarks": "FAB FROM PIPE",
-        "sl_no": 1,
-        "uom": "pcs"
-      }
-    ],
-    "file_urls": {
-      "client_excel_url": "https://res.cloudinary.com/za7di1ec/raw/upload/v1791437152/msg_oilfield/client_excels/Client_Summary_MSG-200_PO-100.xlsx",
-      "stores_excel_url": "https://res.cloudinary.com/za7di1ec/raw/upload/v1791437154/msg_oilfield/stores_excels/Stores_Summary_MSG-200_PO-100.xlsx",
-      "supplier_pdf_zip_url": "https://res.cloudinary.com/za7di1ec/raw/upload/v1791437155/msg_oilfield/supplier_packages/Supplier_PO_Package_MSG-200.zip",
-      "cipl_excel_url": "https://res.cloudinary.com/za7di1ec/raw/upload/v1791437156/msg_oilfield/cipl_documents/CIPL_MSG-200_PO-100.xlsx"
-    }
   },
   {
     "id": "draft_20261008_105537_9900c3",
