@@ -49,14 +49,14 @@ def generate_summary_excel(data, logo_path=None, output_path=None, is_internal=F
         total_cols = 11
         logo_cell = 'J2'
     else:
-        # Client export: strictly 8 columns
+        # Client export: Includes CLIENT PO ITEM NO, hides supplier pricing/details
         headers = [
-            "SL NO", "Description", "PO Qty", "UOM",
+            "SL NO", "CLIENT PO ITEM NO", "Description", "PO Qty", "UOM",
             "Heat Number", "Certificate Number", "MAKE", "Remarks"
         ]
-        max_col_letter = 'H'
-        total_cols = 8
-        logo_cell = 'H2'
+        max_col_letter = 'I'
+        total_cols = 9
+        logo_cell = 'I2'
 
     # Filter items if filter_machined_only is True
     raw_items = data.get("items", [])
@@ -105,8 +105,8 @@ def generate_summary_excel(data, logo_path=None, output_path=None, is_internal=F
         ws.merge_cells('F2:I4')
         ws.merge_cells('J2:K4')
     else:
-        ws.merge_cells('F2:G4')
-        ws.merge_cells('H2:H4')
+        ws.merge_cells('F2:H4')
+        ws.merge_cells('I2:I4')
 
     for r in range(2, 5):
         for c in range(1, total_cols + 1):
@@ -196,11 +196,14 @@ def generate_summary_excel(data, logo_path=None, output_path=None, is_internal=F
             c_spo = ws.cell(row=row_idx, column=11, value=item.get("supplier_po", ""))
             c_spo.alignment = Alignment(horizontal='center', vertical='center')
         else:
-            # Client Layout (8 Cols: SL NO, Description, PO Qty...)
+            # Client Layout (9 Cols: SL NO, CLIENT PO ITEM NO, Description, PO Qty...)
             c_sl = ws.cell(row=row_idx, column=1, value=item.get("sl_no", idx + 1))
             c_sl.alignment = Alignment(horizontal='center', vertical='center')
 
-            c_desc = ws.cell(row=row_idx, column=2, value=item.get("description", ""))
+            c_cpo = ws.cell(row=row_idx, column=2, value=item.get("client_po_item_no", item.get("sl_no", idx + 1)))
+            c_cpo.alignment = Alignment(horizontal='center', vertical='center')
+
+            c_desc = ws.cell(row=row_idx, column=3, value=item.get("description", ""))
             c_desc.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
 
             raw_qty = item.get("qty", "")
@@ -212,24 +215,24 @@ def generate_summary_excel(data, logo_path=None, output_path=None, is_internal=F
                 except (ValueError, TypeError):
                     val_qty = raw_qty
             
-            c_qty = ws.cell(row=row_idx, column=3, value=val_qty)
+            c_qty = ws.cell(row=row_idx, column=4, value=val_qty)
             c_qty.alignment = Alignment(horizontal='center', vertical='center')
             if isinstance(val_qty, (int, float)):
                 c_qty.number_format = '#,##0.00'
 
-            c_uom = ws.cell(row=row_idx, column=4, value=item.get("uom", ""))
+            c_uom = ws.cell(row=row_idx, column=5, value=item.get("uom", ""))
             c_uom.alignment = Alignment(horizontal='center', vertical='center')
 
-            c_heat = ws.cell(row=row_idx, column=5, value=item.get("heat_number", ""))
+            c_heat = ws.cell(row=row_idx, column=6, value=item.get("heat_number", ""))
             c_heat.alignment = Alignment(horizontal='center', vertical='center')
 
-            c_cert = ws.cell(row=row_idx, column=6, value=item.get("certificate_number", ""))
+            c_cert = ws.cell(row=row_idx, column=7, value=item.get("certificate_number", ""))
             c_cert.alignment = Alignment(horizontal='center', vertical='center')
 
-            c_make = ws.cell(row=row_idx, column=7, value=item.get("make", ""))
+            c_make = ws.cell(row=row_idx, column=8, value=item.get("make", ""))
             c_make.alignment = Alignment(horizontal='center', vertical='center')
 
-            c_rem = ws.cell(row=row_idx, column=8, value=item.get("remarks", ""))
+            c_rem = ws.cell(row=row_idx, column=9, value=item.get("remarks", ""))
             c_rem.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
 
         for c_i in range(1, total_cols + 1):
@@ -243,27 +246,28 @@ def generate_summary_excel(data, logo_path=None, output_path=None, is_internal=F
     if is_internal:
         column_widths = {
             'A': 10,  # SL NO
-            'B': 18,  # CLIENT PO ITEM NO
-            'C': 85,  # Description (Extended width to the right!)
-            'D': 12,  # PO Qty
+            'B': 22,  # CLIENT PO ITEM NO (Extended)
+            'C': 90,  # Description (Extended)
+            'D': 14,  # PO Qty
             'E': 10,  # UOM
-            'F': 18,  # Heat Number
-            'G': 22,  # Certificate Number
-            'H': 16,  # MAKE
-            'I': 25,  # Remarks
-            'J': 24,  # SUPPLIER NAME
-            'K': 18   # SUPPLIER PO #
+            'F': 22,  # Heat Number (Extended)
+            'G': 26,  # Certificate Number (Extended)
+            'H': 22,  # MAKE (Extended)
+            'I': 30,  # Remarks (Extended)
+            'J': 28,  # SUPPLIER NAME (Extended)
+            'K': 22   # SUPPLIER PO # (Extended)
         }
     else:
         column_widths = {
             'A': 10,  # SL NO
-            'B': 85,  # Description (Extended width to the right!)
-            'C': 12,  # PO Qty
-            'D': 10,  # UOM
-            'E': 18,  # Heat Number
-            'F': 22,  # Certificate Number
-            'G': 16,  # MAKE
-            'H': 25   # Remarks
+            'B': 22,  # CLIENT PO ITEM NO (Extended)
+            'C': 90,  # Description (Extended)
+            'D': 14,  # PO Qty
+            'E': 10,  # UOM
+            'F': 22,  # Heat Number (Extended)
+            'G': 26,  # Certificate Number (Extended)
+            'H': 22,  # MAKE (Extended)
+            'I': 30   # Remarks (Extended)
         }
 
     for col_letter, width in column_widths.items():

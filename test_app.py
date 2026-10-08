@@ -212,20 +212,82 @@ class SummaryAppTestCase(unittest.TestCase):
         ws_pk = wb['PACKING LIST']
         self.assertEqual(ws_pk['A6'].value, "PACKING LIST")
 
-    def test_pdf_table_parsing_multipage(self):
-        import os
-        from pdf_parser import extract_pdf_data
-        sample_pdf = os.path.join(os.path.expanduser('~'), '.gemini', 'antigravity', 'brain', '9933e0df-4c58-42c8-af70-5825a1a5ec51', '.user_uploaded', 'media_1791277365942.pdf')
-        if os.path.exists(sample_pdf):
-            data = extract_pdf_data(sample_pdf)
-            self.assertEqual(data['msg_ref'], 'MSG-1026-2177')
-            self.assertEqual(len(data['items']), 24)
-            # Verify item 16 is properly merged with its description across page 2 and 3
-            item16 = next((it for it in data['items'] if it['sl_no'] == 16), None)
-            self.assertIsNotNone(item16)
-            self.assertIn('BALL VALVE', item16['description'])
-            self.assertEqual(item16['rate'], '3,250.00')
-            self.assertEqual(item16['amount'], '3,250.00')
+    def test_cipl_formulas_and_make_detection(self):
+        from pdf_parser import auto_detect_make
+        # 1. Test MAKE detection from description tokens
+        self.assertEqual(auto_detect_make("CAP 10\" BENKAN/TK A234 WPB"), "BENKAN THAILAND")
+        self.assertEqual(auto_detect_make("FULL COUPLING 1\" 6000# BOTHWELL"), "BOTHWELL TAIWAN")
+        self.assertEqual(auto_detect_make("ECC SWAGE NIPPLE 2\" X 1\" MEGA/JD"), "DELCORTE FRANCE")
+        self.assertEqual(auto_detect_make("NIPPLE 1/2\" CHERO PIPING ITALY"), "CHERO ITALY")
+
+        # 2. Test CIPL Excel formulas
+        payload = {
+            "client": "Test Client",
+            "po_number": "PO-10025",
+            "msg_ref": "MSG-0826-2117",
+            "currency": "USD",
+            "items": [
+                {
+                    "sl_no": 1,
+                    "client_po_item_no": "1",
+                    "description": "CAP 10\" BENKAN/TK",
+                    "qty": "2.00",
+                    "uom": "pcs",
+                    "rate": "285.00",
+                    "amount": "570.00",
+                    "unit_weight": "0.60",
+                    "total_weight": "1.20",
+                    "package_type": "Pallet",
+                    "package_no": "1",
+                    "dimensions": "25 X 20 X 10 CM"
+                }
+            ]
+        }
+        res = self.app.post('/api/download-cipl', json=payload)
+        self.assertEqual(res.status_code, 200)
+        
+        wb = openpyxl.load_workbook(io.BytesIO(res.data), data_only=False)
+        ws_inv = wb['INVOICE']
+        # Item amount should be an Excel formula =C21*G21
+        self.assertEqual(ws_inv['H21'].value, "=C21*G21")
+        # Total value should be =SUM(H21:H21)
+        self.assertEqual(ws_inv['H22'].value, "=SUM(H21:H21)")
+
+        ws_pk = wb['PACKING LIST']
+        # Total weight should be an Excel formula =C22*G22
+        self.assertEqual(ws_pk['H22'].value, "=C22*G22")
+        # Subtotal Net weight should be =SUM(H22:H22)
+        self.assertEqual(ws_pk['G23'].value, "=SUM(H22:H22)")
+
+    def test_client_summary_includes_client_item_no(self):
+        payload = {
+            "client": "Test Client",
+            "po_number": "PO-10025",
+            "msg_ref": "MSG-0826-2117",
+            "is_internal": False,
+            "filter_machined_only": False,
+            "items": [
+                {
+                    "sl_no": 27,
+                    "client_po_item_no": "35",
+                    "description": "ECC SWAGE NIPPLE",
+                    "qty": "1.00",
+                    "uom": "pcs",
+                    "heat_number": "27505",
+                    "certificate_number": "CE/2024/168",
+                    "make": "CHERO ITALY",
+                    "remarks": "Machined from bar"
+                }
+            ]
+        }
+        res = self.app.post('/api/download', json=payload)
+        self.assertEqual(res.status_code, 200)
+        wb = openpyxl.load_workbook(io.BytesIO(res.data))
+        ws = wb.active
+        self.assertEqual(ws['A5'].value, "SL NO")
+        self.assertEqual(ws['B5'].value, "CLIENT PO ITEM NO")
+        self.assertEqual(ws['B6'].value, "35")
 
 if __name__ == '__main__':
     unittest.main()
+

@@ -29,32 +29,29 @@ REMARK_PATTERN = re.compile(
 )
 
 MAKE_MAPPINGS = [
-    (r"OMSA[-_]?STOCK|OMSA", "OMSA GERMANY"),
     (r"JD[-_]?STOCK|\bDELCORTE\b|MEGA\/JD", "DELCORTE FRANCE"),
+    (r"BENKAN\/TK|\bBENKAN\b", "BENKAN THAILAND"),
+    (r"\bBOTHWELL\b", "BOTHWELL TAIWAN"),
+    (r"\bCHERO\b|\bCHERO\s+PIPING\b|\bCHERO\s+FORGED\b|\bCHERO\s*F\b", "CHERO ITALY"),
+    (r"\bBONNEY\s+FORGE\b", "BONNEY FORGE USA"),
+    (r"\bPROMAT\b", "PROMAT UK"),
+    (r"OMSA[-_]?STOCK|\bOMSA\b", "OMSA GERMANY"),
     (r"W[-_]?STOCK|WMA?ASS", "WMASS GERMANY"),
-    (r"TK[-_]?STOCK", "TK KOREA"),
-    (r"ST&H(?:[-_]?STOCK)?|STH", "ST&H KOREA"),
+    (r"TK[-_]?STOCK|\bTK\b", "TK KOREA"),
+    (r"ST&H(?:[-_]?STOCK)?|\bSTH\b", "ST&H KOREA"),
     (r"\bMFF\b|METALFAR", "Metalfar Italy"),
-    (r"BENKAN", "BENKAN THAILAND"),
-    (r"ULMA", "ULMA SPAIN"),
-    (r"MELESI", "MELESI ITALY"),
+    (r"\bULMA\b", "ULMA SPAIN"),
+    (r"\bMELESI\b", "MELESI ITALY"),
     (r"\bMEGA\b", "MEGA ITALY"),
+    (r"\bRACCORTUBI\b", "RACCORTUBI ITALY"),
+    (r"\bKITZ\b", "KITZ JAPAN"),
+    (r"\bVALVEWORKS\b", "VALVEWORKS USA"),
+    (r"\bSEGYUNG\b", "SEGYUNG KOREA"),
 ]
 
 def auto_detect_make(raw_text):
     """
-    Auto-detects manufacturer / MAKE name from raw item description or product code.
-    Mappings:
-      - MFF / METALFAR -> Metalfar Italy
-      - BENKAN -> BENKAN THAILAND
-      - ST&H / STH -> ST&H KOREA
-      - W-STOCK / WMAASS / WMASS -> WMASS GERMANY
-      - JD-STOCK / DELCORTE / MEGA/JD -> DELCORTE FRANCE
-      - OMSA-STOCK / OMSA -> OMSA GERMANY
-      - TK-STOCK -> TK KOREA
-      - ULMA -> ULMA SPAIN
-      - MELESI -> MELESI ITALY
-      - MEGA -> MEGA ITALY
+    Auto-detects manufacturer / MAKE name from raw item description, product code, or remarks.
     """
     if not raw_text:
         return ""
@@ -495,20 +492,18 @@ def extract_pdf_data(pdf_path_or_file):
         else:
             item["product_code"] = ""
 
-        # 2. Check MAKE and STOCK strictly from product code
-        if item["product_code"]:
-            # Auto-detect MAKE strictly from product code
-            if not item.get("make"):
-                detected_make = auto_detect_make(item["product_code"])
-                if detected_make:
-                    item["make"] = detected_make
+        # 2. Check MAKE from product code, description, or remarks
+        if not item.get("make"):
+            detected_make = auto_detect_make(f"{item.get('product_code', '')} {item.get('description', '')} {item.get('remarks', '')}")
+            if detected_make:
+                item["make"] = detected_make
 
-            # Check if product code contains STOCK
-            if re.search(r"[-_\s/]?STOCK\b", item["product_code"], re.IGNORECASE):
-                item["supplier_name"] = "STOCK"
-            else:
-                item["supplier_name"] = ""
-        else:
+        # Check if product code or description contains STOCK
+        if item.get("product_code") and re.search(r"[-_\s/]?STOCK\b", item["product_code"], re.IGNORECASE):
+            item["supplier_name"] = "STOCK"
+        elif not item.get("supplier_name") and re.search(r"[-_\s/]?STOCK\b", item.get("description", ""), re.IGNORECASE):
+            item["supplier_name"] = "STOCK"
+        elif not item.get("supplier_name"):
             item["supplier_name"] = ""
 
         # 3. Check if description itself contains remark patterns

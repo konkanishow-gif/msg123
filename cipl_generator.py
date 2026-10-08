@@ -433,6 +433,7 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
         
     grand_total_qty = 0
     grand_total_amt = 0.0
+    inv_item_rows = []
     
     for p_num, p_items in po_groups.items():
         # PO Header Row
@@ -445,6 +446,7 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
         curr_row += 1
         
         for p_idx, it in enumerate(p_items, start=1):
+            inv_item_rows.append(curr_row)
             ws_inv.cell(row=curr_row, column=1, value=p_idx).alignment = Alignment(horizontal='center', vertical='center')
             ws_inv.cell(row=curr_row, column=2, value=it['description']).alignment = Alignment(horizontal='left', vertical='center')
             ws_inv.cell(row=curr_row, column=3, value=int(it['qty']) if it['qty'].is_integer() else it['qty']).alignment = Alignment(horizontal='center', vertical='center')
@@ -456,7 +458,8 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
             c_rate.alignment = Alignment(horizontal='right', vertical='center')
             c_rate.number_format = '0.00'
             
-            c_amt = ws_inv.cell(row=curr_row, column=8, value=it['amount'])
+            # Formula: Qty into Price
+            c_amt = ws_inv.cell(row=curr_row, column=8, value=f"=C{curr_row}*G{curr_row}")
             c_amt.alignment = Alignment(horizontal='right', vertical='center')
             c_amt.number_format = '0.00'
             
@@ -470,12 +473,17 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
             curr_row += 1
             
     # Bottom Total Row
+    r_inv_total = curr_row
+    first_item_r = inv_item_rows[0] if inv_item_rows else (start_row + 2)
+    last_item_r = inv_item_rows[-1] if inv_item_rows else (start_row + 2)
+
     ws_inv.merge_cells(start_row=curr_row, start_column=1, end_row=curr_row, end_column=2)
     c_tot_label = ws_inv.cell(row=curr_row, column=1, value=f"TOTAL VALUE IN {currency}.")
     c_tot_label.font = f_data_bold
     c_tot_label.alignment = Alignment(horizontal='center', vertical='center')
     
-    c_tot_q = ws_inv.cell(row=curr_row, column=3, value=int(grand_total_qty) if float(grand_total_qty).is_integer() else grand_total_qty)
+    # Formula: Total Qty
+    c_tot_q = ws_inv.cell(row=curr_row, column=3, value=f"=SUM(C{first_item_r}:C{last_item_r})")
     c_tot_q.font = f_data_bold
     c_tot_q.alignment = Alignment(horizontal='center', vertical='center')
     
@@ -490,7 +498,8 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
     c_cur.font = f_data_bold
     c_cur.alignment = Alignment(horizontal='center', vertical='center')
     
-    c_tot_val = ws_inv.cell(row=curr_row, column=8, value=grand_total_amt)
+    # Formula: Total Value
+    c_tot_val = ws_inv.cell(row=curr_row, column=8, value=f"=SUM(H{first_item_r}:H{last_item_r})")
     c_tot_val.font = f_data_bold
     c_tot_val.alignment = Alignment(horizontal='right', vertical='center')
     c_tot_val.number_format = '0.00'
@@ -590,6 +599,8 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
     total_pk_qty = 0
     total_pk_net_wt = 0.0
     total_pk_gross_wt = 0.0
+    pk_item_rows = []
+    pkg_subtotal_rows = []
     
     for pkey, pinfo in pkg_groups.items():
         # Package Header Row (e.g. CARTON BOX - 1 | 25 X 20 X 10 CM)
@@ -615,6 +626,7 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
                 pkg_po_groups[p_num] = []
             pkg_po_groups[p_num].append(it)
             
+        carton_item_rows = []
         carton_net_wt = 0.0
         carton_gross_wt = 0.0
         
@@ -629,6 +641,8 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
             curr_pk_row += 1
             
             for p_idx, it in enumerate(po_items, start=1):
+                pk_item_rows.append(curr_pk_row)
+                carton_item_rows.append(curr_pk_row)
                 ws_pk.cell(row=curr_pk_row, column=1, value=p_idx).alignment = Alignment(horizontal='center', vertical='center')
                 ws_pk.cell(row=curr_pk_row, column=2, value=it['description']).alignment = Alignment(horizontal='left', vertical='center')
                 ws_pk.cell(row=curr_pk_row, column=3, value=int(it['qty']) if it['qty'].is_integer() else it['qty']).alignment = Alignment(horizontal='center', vertical='center')
@@ -640,7 +654,8 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
                 c_uwt.alignment = Alignment(horizontal='right', vertical='center')
                 c_uwt.number_format = '0.00'
                 
-                c_twt = ws_pk.cell(row=curr_pk_row, column=8, value=it['total_weight'])
+                # Formula: Qty into Unit Weight
+                c_twt = ws_pk.cell(row=curr_pk_row, column=8, value=f"=C{curr_pk_row}*G{curr_pk_row}")
                 c_twt.alignment = Alignment(horizontal='right', vertical='center')
                 c_twt.number_format = '0.00'
                 
@@ -658,6 +673,11 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
         total_pk_gross_wt += carton_gross_wt
         
         # Package Subtotal Row (NET WEIGHT X.XX | GROSS WEIGHT X.XX)
+        r_sub = curr_pk_row
+        pkg_subtotal_rows.append(r_sub)
+        first_carton_r = carton_item_rows[0] if carton_item_rows else (curr_pk_row - 1)
+        last_carton_r = carton_item_rows[-1] if carton_item_rows else (curr_pk_row - 1)
+
         ws_pk.merge_cells(start_row=curr_pk_row, start_column=1, end_row=curr_pk_row, end_column=5)
         apply_cell_border(ws_pk, curr_pk_row, 1, curr_pk_row, 5, thin_border)
         
@@ -666,13 +686,15 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
         c_lbl_net.alignment = Alignment(horizontal='center', vertical='center')
         c_lbl_net.border = thin_border
         
-        c_val_net = ws_pk.cell(row=curr_pk_row, column=7, value=carton_net_wt)
+        # Formula: Sum of carton weights
+        c_val_net = ws_pk.cell(row=curr_pk_row, column=7, value=f"=SUM(H{first_carton_r}:H{last_carton_r})")
         c_val_net.font = f_data_bold
         c_val_net.alignment = Alignment(horizontal='right', vertical='center')
         c_val_net.number_format = '0.00'
         c_val_net.border = thin_border
         
-        c_lbl_gross = ws_pk.cell(row=curr_pk_row, column=8, value=f"GROSS WEIGHT: {carton_gross_wt:.2f}")
+        # Backward formula: Gross Weight equals Net Weight
+        c_lbl_gross = ws_pk.cell(row=curr_pk_row, column=8, value=f'="GROSS WEIGHT: " & TEXT(G{r_sub}, "0.00")')
         c_lbl_gross.font = f_data_bold
         c_lbl_gross.alignment = Alignment(horizontal='center', vertical='center')
         c_lbl_gross.border = thin_border
@@ -681,9 +703,14 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
         curr_pk_row += 1
 
     # Grand Total Packing Rows
+    r_grand_net = curr_pk_row
+    first_pk_r = pk_item_rows[0] if pk_item_rows else (start_row_pk + 2)
+    last_pk_r = pk_item_rows[-1] if pk_item_rows else (start_row_pk + 2)
+    sub_net_formula = "=" + "+".join([f"G{r}" for r in pkg_subtotal_rows]) if pkg_subtotal_rows else f"=SUM(H{first_pk_r}:H{last_pk_r})"
+
     # Row 1: TOTAL NET WEIGHT IN KGS.
     ws_pk.merge_cells(start_row=curr_pk_row, start_column=1, end_row=curr_pk_row, end_column=2)
-    c_tot_q = ws_pk.cell(row=curr_pk_row, column=3, value=int(total_pk_qty) if float(total_pk_qty).is_integer() else total_pk_qty)
+    c_tot_q = ws_pk.cell(row=curr_pk_row, column=3, value=f"=SUM(C{first_pk_r}:C{last_pk_r})")
     c_tot_q.font = f_data_bold
     c_tot_q.alignment = Alignment(horizontal='center', vertical='center')
     
@@ -696,7 +723,8 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
     c_net_title.font = f_data_bold
     c_net_title.alignment = Alignment(horizontal='center', vertical='center')
     
-    c_net_tot = ws_pk.cell(row=curr_pk_row, column=8, value=total_pk_net_wt)
+    # Formula: Total Net Weight
+    c_net_tot = ws_pk.cell(row=curr_pk_row, column=8, value=sub_net_formula)
     c_net_tot.font = f_data_bold
     c_net_tot.alignment = Alignment(horizontal='right', vertical='center')
     c_net_tot.number_format = '0.00'
@@ -706,12 +734,14 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
     curr_pk_row += 1
     
     # Row 2: TOTAL GROSS WEIGHT IN KGS.
+    r_grand_gross = curr_pk_row
     ws_pk.merge_cells(start_row=curr_pk_row, start_column=5, end_row=curr_pk_row, end_column=7)
     c_gross_title = ws_pk.cell(row=curr_pk_row, column=5, value="TOTAL GROSS WEIGHT IN KGS.")
     c_gross_title.font = f_data_bold
     c_gross_title.alignment = Alignment(horizontal='center', vertical='center')
     
-    c_gross_tot = ws_pk.cell(row=curr_pk_row, column=8, value=total_pk_gross_wt)
+    # Backward formula: Total Gross Weight references Total Net Weight
+    c_gross_tot = ws_pk.cell(row=curr_pk_row, column=8, value=f"=H{r_grand_net}")
     c_gross_tot.font = f_data_bold
     c_gross_tot.alignment = Alignment(horizontal='right', vertical='center')
     c_gross_tot.number_format = '0.00'
@@ -729,10 +759,10 @@ def generate_cipl_excel(data, logo_path=None, output_path=None):
     ws_pk.cell(row=r_pk_box+1, column=1, value=f"({tot_pkg_count} {pkg_type_name})").font = f_meta_reg
     
     ws_pk.merge_cells(start_row=r_pk_box+2, start_column=1, end_row=r_pk_box+2, end_column=4)
-    ws_pk.cell(row=r_pk_box+2, column=1, value=f"NET WEIGHT : {total_pk_net_wt:.2f} KGS").font = f_meta_bold
+    ws_pk.cell(row=r_pk_box+2, column=1, value=f'="NET WEIGHT : " & TEXT(H{r_grand_net}, "0.00") & " KGS"').font = f_meta_bold
     
     ws_pk.merge_cells(start_row=r_pk_box+3, start_column=1, end_row=r_pk_box+3, end_column=4)
-    ws_pk.cell(row=r_pk_box+3, column=1, value=f"GROSS WEIGHT : {total_pk_gross_wt:.2f} KGS").font = f_meta_bold
+    ws_pk.cell(row=r_pk_box+3, column=1, value=f'="GROSS WEIGHT : " & TEXT(H{r_grand_gross}, "0.00") & " KGS"').font = f_meta_bold
     
     # Right side: Shipping marks
     ws_pk.merge_cells(start_row=r_pk_box, start_column=5, end_row=r_pk_box, end_column=8)
